@@ -275,6 +275,13 @@ server.tool(
 // Initialize Express app
 const app = express();
 
+// Global request logging
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${req.method} ${req.url}`);
+  next();
+});
+
 let activeTransport: SSEServerTransport | null = null;
 
 app.get("/sse", async (req, res) => {
