@@ -275,10 +275,15 @@ server.tool(
 // Initialize Express app
 const app = express();
 
-// Global request logging
+// Global request logging with response tracking
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] ${req.method} ${req.url}`);
+  console.log(`[${timestamp}] Incoming: ${req.method} ${req.url}`);
+
+  res.on("finish", () => {
+    console.log(`[${timestamp}] Completed: ${req.method} ${req.url} ${res.statusCode}`);
+  });
+
   next();
 });
 
@@ -311,13 +316,14 @@ app.post("/messages", async (req, res) => {
   }
 });
 
-// Remove unused StdioServerTransport import is a bit hard with replace_file_content if I don't target the top.
-// I'll just focus on the bottom part for now.
+// Add health check route
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
-// Add health check route with logging
 app.get("/", (req, res) => {
   console.log("Health check requested");
-  res.status(200).send("OK");
+  res.status(200).json({ status: "ok" });
 });
 
 const serverInstance = app.listen(PORT, "0.0.0.0", () => {
@@ -327,14 +333,30 @@ const serverInstance = app.listen(PORT, "0.0.0.0", () => {
   console.log(`Listening on IPv4 (0.0.0.0)`);
 });
 
+// Global error handlers
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
+
 // Graceful shutdown
-const shutdown = () => {
-  console.log("Received shutdown signal. Closing server...");
+const shutdown = (signal: string) => {
+  console.log(`Received ${signal}. Closing server...`);
   serverInstance.close(() => {
     console.log("Server closed.");
     process.exit(0);
   });
+
+  // Force exit if close takes too long
+  setTimeout(() => {
+    console.error("Forcing shutdown...");
+    process.exit(1);
+  }, 5000);
 };
 
-process.on("SIGTERM", shutdown);
-process.on("SIGINT", shutdown);
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
