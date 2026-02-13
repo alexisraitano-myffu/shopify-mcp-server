@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import express from "express";
 import dotenv from "dotenv";
 import { GraphQLClient } from "graphql-request";
 import minimist from "minimist";
@@ -28,6 +29,7 @@ dotenv.config();
 const SHOPIFY_ACCESS_TOKEN =
   argv.accessToken || process.env.SHOPIFY_ACCESS_TOKEN;
 const MYSHOPIFY_DOMAIN = argv.domain || process.env.MYSHOPIFY_DOMAIN;
+const PORT = process.env.PORT || 8080;
 
 // Store in process.env for backwards compatibility
 process.env.SHOPIFY_ACCESS_TOKEN = SHOPIFY_ACCESS_TOKEN;
@@ -270,11 +272,82 @@ server.tool(
   }
 );
 
-// Start the server
-const transport = new StdioServerTransport();
-server
-  .connect(transport)
-  .then(() => {})
-  .catch((error: unknown) => {
-    console.error("Failed to start Shopify MCP Server:", error);
+// Initialize Express app
+const app = express();
+
+app.get("/sse", async (req, res) => {
+  console.log("New SSE connection");
+  const transport = new SSEServerTransport("/messages", res);
+  await server.connect(transport);
+  
+  // Keep the connection open
+  res.on("close", () => {
+    console.log("SSE connection closed");
+    // server.close(); // Don't close the server, just the transport
   });
+});
+
+app.post("/messages", async (req, res) => {
+  console.log("Received message");
+  // Note: SSEServerTransport handles the message routing internally via handlePostMessage
+  // We need to find the active transport and delegate to it, but the current SDK
+  // design for SSEServerTransport is a bit tricky with multiple connections.
+  // However, for a simple setup, we can rely on the fact that handlePostMessage 
+  // is expected to be called with the request and response objects.
+  // The SDK documentation suggests this pattern:
+  
+  // Since we create a new transport for each SSE connection, we need a way to 
+  // route the POST request to the correct transport. But standard MCP SSE 
+  // implementation usually assumes a single transport per session or handles 
+  // session management.
+  //
+  // For the standard @modelcontextprotocol/sdk SSEServerTransport, it exposes
+  // a `handlePostMessage` method.
+  // 
+  // In a real multi-client scenario, we'd need session IDs. For simplicity and 
+  // standard MCP compliance, we'll implement a basic handlers.
+  
+  // BUT WAIT: The standard pattern for Express + MCP SSE is:
+  // 1. /sse creates the transport and stores it (or just connects it).
+  // 2. /messages receives the message.
+  // 
+  // The issue is that we need the specific transport instance to handle the message.
+  // The SSEServerTransport class in the SDK is designed to handle this.
+  // Let's look at how we can implement this robustly.
+  //
+  // Actually, a common pattern for simple MCP servers is to use a global transport 
+  // or a map of transports if supporting multiple clients.
+  // Given this is likely for a single Voiceflow connection or similar, we can start simpler.
+  //
+  // START FIX:
+  // We'll use a transport variable that gets updated on new connection.
+  // This is a limitation if multiple concurrent clients are expected, but valid for
+  // many single-tenant use cases. 
+  
+  if (!activeTransport) {
+    res.status(503).send("No active SSE connection");
+    return;
+  }
+  
+  try {
+    await activeTransport.handlePostMessage(req, res);
+  } catch (error) {
+    console.error("Error handling message:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+let activeTransport: SSEServerTransport | null = null;
+
+// Override the /sse route to capture the transport
+app.get("/sse", async (req, res) => {
+  console.log("New SSE connection established");
+  activeTransport = new SSEServerTransport("/messages", res);
+  await server.connect(activeTransport);
+});
+
+app.listen(PORT, () => {
+  console.log(`Shopify MCP Server running on port ${PORT}`);
+  console.log(`SSE endpoint: http://localhost:${PORT}/sse`);
+  console.log(`Messages endpoint: http://localhost:${PORT}/messages`);
+});
