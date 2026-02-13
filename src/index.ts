@@ -320,11 +320,11 @@ app.get("/", (req, res) => {
   res.status(200).send("OK");
 });
 
-const serverInstance = app.listen(PORT, () => {
+const serverInstance = app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server environment PORT: ${process.env.PORT}`);
   console.log(`Resolved PORT: ${PORT}`);
   console.log(`Shopify MCP Server running on port ${PORT}`);
-  console.log(`Listening on all interfaces (0.0.0.0 and ::)`);
+  console.log(`Listening on IPv4 (0.0.0.0)`);
 });
 
 // Graceful shutdown
