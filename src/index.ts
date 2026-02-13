@@ -29,7 +29,7 @@ dotenv.config();
 const SHOPIFY_ACCESS_TOKEN =
   argv.accessToken || process.env.SHOPIFY_ACCESS_TOKEN;
 const MYSHOPIFY_DOMAIN = argv.domain || process.env.MYSHOPIFY_DOMAIN;
-const PORT = process.env.PORT || 8080;
+const PORT = Number(process.env.PORT) || 8080;
 
 // Store in process.env for backwards compatibility
 process.env.SHOPIFY_ACCESS_TOKEN = SHOPIFY_ACCESS_TOKEN;
@@ -279,7 +279,7 @@ app.get("/sse", async (req, res) => {
   console.log("New SSE connection");
   const transport = new SSEServerTransport("/messages", res);
   await server.connect(transport);
-  
+
   // Keep the connection open
   res.on("close", () => {
     console.log("SSE connection closed");
@@ -295,7 +295,7 @@ app.post("/messages", async (req, res) => {
   // However, for a simple setup, we can rely on the fact that handlePostMessage 
   // is expected to be called with the request and response objects.
   // The SDK documentation suggests this pattern:
-  
+
   // Since we create a new transport for each SSE connection, we need a way to 
   // route the POST request to the correct transport. But standard MCP SSE 
   // implementation usually assumes a single transport per session or handles 
@@ -306,7 +306,7 @@ app.post("/messages", async (req, res) => {
   // 
   // In a real multi-client scenario, we'd need session IDs. For simplicity and 
   // standard MCP compliance, we'll implement a basic handlers.
-  
+
   // BUT WAIT: The standard pattern for Express + MCP SSE is:
   // 1. /sse creates the transport and stores it (or just connects it).
   // 2. /messages receives the message.
@@ -323,12 +323,12 @@ app.post("/messages", async (req, res) => {
   // We'll use a transport variable that gets updated on new connection.
   // This is a limitation if multiple concurrent clients are expected, but valid for
   // many single-tenant use cases. 
-  
+
   if (!activeTransport) {
     res.status(503).send("No active SSE connection");
     return;
   }
-  
+
   try {
     await activeTransport.handlePostMessage(req, res);
   } catch (error) {
@@ -346,8 +346,11 @@ app.get("/sse", async (req, res) => {
   await server.connect(activeTransport);
 });
 
-app.listen(PORT, () => {
+// Add health check route
+app.get("/", (req, res) => {
+  res.send("Shopify MCP Server is running");
+});
+
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Shopify MCP Server running on port ${PORT}`);
-  console.log(`SSE endpoint: http://localhost:${PORT}/sse`);
-  console.log(`Messages endpoint: http://localhost:${PORT}/messages`);
 });
