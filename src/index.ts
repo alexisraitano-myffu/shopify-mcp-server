@@ -304,11 +304,27 @@ app.post("/messages", async (req, res) => {
   }
 });
 
-// Add health check route
+// Remove unused StdioServerTransport import is a bit hard with replace_file_content if I don't target the top.
+// I'll just focus on the bottom part for now.
+
+// Add health check route with logging
 app.get("/", (req, res) => {
-  res.send("OK");
+  console.log("Health check requested");
+  res.status(200).send("OK");
 });
 
-app.listen(PORT, "0.0.0.0", () => {
+const serverInstance = app.listen(PORT, "0.0.0.0", () => {
   console.log(`Shopify MCP Server running on 0.0.0.0:${PORT}`);
 });
+
+// Graceful shutdown
+const shutdown = () => {
+  console.log("Received shutdown signal. Closing server...");
+  serverInstance.close(() => {
+    console.log("Server closed.");
+    process.exit(0);
+  });
+};
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
