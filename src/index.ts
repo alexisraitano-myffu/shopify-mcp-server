@@ -383,6 +383,7 @@ server.tool(
 
 // Initialize Express app
 const app = express();
+app.use(express.json()); // Parse JSON bodies
 
 // Global request logging with response tracking
 app.use((req, res, next) => {
@@ -433,6 +434,73 @@ app.get("/health", (req, res) => {
 app.get("/", (req, res) => {
   console.log("Health check requested");
   res.status(200).json({ status: "ok" });
+});
+
+// REST API Endpoints for OTP
+app.post("/api/request-otp", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    res.status(400).json({ error: "Email is required" });
+    return;
+  }
+
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  otpStorage.set(email, { code, expires: Date.now() + 5 * 60 * 1000 }); // 5 minutes
+
+  try {
+    await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to: email,
+      subject: "Your Shopify Order Access Code",
+      html: `<p>Your verification code is: <strong>${code}</strong></p>`
+    });
+    res.json({ message: `OTP sent to ${email}` });
+  } catch (error) {
+    res.status(500).json({ error: `Failed to send OTP: ${error}` });
+  }
+});
+
+app.post("/api/verify-otp", async (req, res) => {
+  const { email, code } = req.body;
+
+  if (!email || !code) {
+    res.status(400).json({ error: "Email and code are required" });
+    return;
+  }
+
+  const stored = otpStorage.get(email);
+  if (!stored || stored.code !== code || Date.now() > stored.expires) {
+    res.status(401).json({ error: "Invalid or expired OTP" });
+    return;
+  }
+
+  otpStorage.delete(email);
+  const token = randomUUID();
+  activeSessions.set(token, { email, createdAt: Date.now() });
+
+  try {
+    // Find customer by email to get their orders
+    const customerResult = await getCustomers.execute({ searchQuery: `email:${email}`, limit: 1 });
+    const customer = customerResult.customers[0];
+
+    if (!customer) {
+      res.json({ token, message: "Verified, but no customer found with this email." });
+      return;
+    }
+
+    // Extract numeric ID from Global ID (gid://shopify/Customer/123456)
+    const customerId = customer.id.split('/').pop();
+    const ordersResult = await getCustomerOrders.execute({ customerId, limit: 10 });
+
+    res.json({
+      token,
+      firstName: customer.firstName,
+      orders: ordersResult.orders
+    });
+  } catch (error) {
+    res.status(500).json({ token, message: "Verified, but failed to retrieve orders: " + error });
+  }
 });
 
 const serverInstance = app.listen(PORT, "0.0.0.0", () => {
