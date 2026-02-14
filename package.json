@@ -36,6 +36,7 @@
     "graphql": "^16.6.0",
     "graphql-request": "^5.1.0",
     "minimist": "^1.2.8",
+    "resend": "^6.9.2",
     "zod": "^3.21.4"
   },
   "devDependencies": {

@@ -7,6 +7,8 @@ import dotenv from "dotenv";
 import { GraphQLClient } from "graphql-request";
 import minimist from "minimist";
 import { z } from "zod";
+import { Resend } from "resend";
+import { randomUUID } from "crypto";
 
 // Import tools
 import { getCustomerOrders } from "./tools/getCustomerOrders.js";
@@ -30,6 +32,11 @@ const SHOPIFY_ACCESS_TOKEN =
   argv.accessToken || process.env.SHOPIFY_ACCESS_TOKEN;
 const MYSHOPIFY_DOMAIN = argv.domain || process.env.MYSHOPIFY_DOMAIN;
 const PORT = Number(process.env.PORT) || 8080;
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+
+// OTP Storage
+const otpStorage = new Map<string, { code: string; expires: number }>();
+const activeSessions = new Map<string, { email: string; createdAt: number }>();
 
 // Store in process.env for backwards compatibility
 process.env.SHOPIFY_ACCESS_TOKEN = SHOPIFY_ACCESS_TOKEN;
@@ -49,6 +56,14 @@ if (!MYSHOPIFY_DOMAIN) {
   console.error("  Command line: --domain=your-store.myshopify.com");
   process.exit(1);
 }
+
+if (!RESEND_API_KEY) {
+  console.error("Error: RESEND_API_KEY is required.");
+  console.error("Please provide it via .env file.");
+  process.exit(1);
+}
+
+const resend = new Resend(RESEND_API_KEY);
 
 // Create Shopify GraphQL client
 const shopifyClient = new GraphQLClient(
@@ -122,14 +137,108 @@ server.tool(
   }
 );
 
+
+server.tool(
+  "request-order-otp",
+  {
+    email: z.string().email()
+  },
+  async ({ email }) => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStorage.set(email, { code, expires: Date.now() + 5 * 60 * 1000 }); // 5 minutes
+
+    try {
+      await resend.emails.send({
+        from: "onboarding@resend.dev",
+        to: email,
+        subject: "Your Shopify Order Access Code",
+        html: `<p>Your verification code is: <strong>${code}</strong></p>`
+      });
+      return {
+        content: [{ type: "text", text: `OTP sent to ${email}` }]
+      };
+    } catch (error) {
+      return {
+        isError: true,
+        content: [{ type: "text", text: `Failed to send OTP: ${error}` }]
+      };
+    }
+  }
+);
+
+server.tool(
+  "verify-order-otp",
+  {
+    email: z.string().email(),
+    code: z.string()
+  },
+  async ({ email, code }) => {
+    const stored = otpStorage.get(email);
+    if (!stored || stored.code !== code || Date.now() > stored.expires) {
+      return {
+        isError: true,
+        content: [{ type: "text", text: "Invalid or expired OTP" }]
+      };
+    }
+
+    otpStorage.delete(email);
+    const token = randomUUID();
+    activeSessions.set(token, { email, createdAt: Date.now() });
+
+    try {
+      // Find customer by email to get their orders
+      const customerResult = await getCustomers.execute({ searchQuery: `email:${email}`, limit: 1 });
+      const customer = customerResult.customers[0];
+
+      if (!customer) {
+        return {
+          content: [{ type: "text", text: JSON.stringify({ token, message: "Verified, but no customer found with this email." }) }]
+        };
+      }
+
+      // Extract numeric ID from Global ID (gid://shopify/Customer/123456)
+      const customerId = customer.id.split('/').pop();
+      const ordersResult = await getCustomerOrders.execute({ customerId, limit: 10 });
+
+      return {
+        content: [{ type: "text", text: JSON.stringify({ token, firstName: customer.firstName, orders: ordersResult.orders }) }]
+      };
+    } catch (error) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ token, message: "Verified, but failed to retrieve orders: " + error }) }]
+      };
+    }
+  }
+);
+
 server.tool(
   "get-orders",
   {
     status: z.enum(["any", "open", "closed", "cancelled"]).default("any"),
-    limit: z.number().default(10)
+    limit: z.number().default(10),
+    token: z.string().describe("OTP verification token")
   },
   async (args) => {
-    const result = await getOrders.execute(args);
+    const { token, ...rest } = args;
+    const session = activeSessions.get(token);
+
+    if (!session) {
+      return {
+        isError: true,
+        content: [{ type: "text", text: "Unauthorized: Invalid token" }]
+      };
+    }
+
+    // Optional: Check session expiry (e.g. 1 hour)
+    if (Date.now() - session.createdAt > 3600 * 1000) {
+      activeSessions.delete(token);
+      return {
+        isError: true,
+        content: [{ type: "text", text: "Unauthorized: Token expired" }]
+      };
+    }
+
+    const result = await getOrders.execute(rest);
     return {
       content: [{ type: "text", text: JSON.stringify(result) }]
     };
