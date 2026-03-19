@@ -36,7 +36,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
 // OTP Storage
 const otpStorage = new Map<string, { code: string; expires: number }>();
-const activeSessions = new Map<string, { email: string; createdAt: number }>();
+const activeSessions = new Map<string, { email: string; customerId: string; createdAt: number }>();
 
 // Store in process.env for backwards compatibility
 process.env.SHOPIFY_ACCESS_TOKEN = SHOPIFY_ACCESS_TOKEN;
@@ -185,7 +185,6 @@ server.tool(
 
     otpStorage.delete(email);
     const token = randomUUID();
-    activeSessions.set(token, { email, createdAt: Date.now() });
 
     try {
       // Find customer by email to get their orders
@@ -193,13 +192,15 @@ server.tool(
       const customer = customerResult.customers[0];
 
       if (!customer) {
+        activeSessions.set(token, { email, customerId: "", createdAt: Date.now() });
         return {
           content: [{ type: "text", text: JSON.stringify({ token, message: "Verified, but no customer found with this email." }) }]
         };
       }
 
       // Extract numeric ID from Global ID (gid://shopify/Customer/123456)
-      const customerId = customer.id.split('/').pop();
+      const customerId = customer.id.split('/').pop()!;
+      activeSessions.set(token, { email, customerId, createdAt: Date.now() });
       const ordersResult = await getCustomerOrders.execute({ customerId, limit: 10 });
 
       return {
@@ -315,14 +316,21 @@ server.tool(
 server.tool(
   "get-customer-orders",
   {
-    customerId: z
-      .string()
-      .regex(/^\d+$/, "Customer ID must be numeric")
-      .describe("Shopify customer ID, numeric excluding gid prefix"),
-    limit: z.number().default(10)
+    token: z.string().describe("OTP verification token"),
+    limit: z.number().default(5)
   },
-  async (args) => {
-    const result = await getCustomerOrders.execute(args);
+  async ({ token, limit }) => {
+    const session = activeSessions.get(token);
+
+    if (!session || Date.now() > session.createdAt + 3600 * 1000) {
+      if (session) activeSessions.delete(token);
+      return {
+        isError: true,
+        content: [{ type: "text", text: "Session expirée, veuillez vous réauthentifier" }]
+      };
+    }
+
+    const result = await getCustomerOrders.execute({ customerId: session.customerId, limit });
     return {
       content: [{ type: "text", text: JSON.stringify(result) }]
     };
@@ -482,7 +490,6 @@ app.post("/api/verify-otp", async (req, res) => {
 
   otpStorage.delete(email);
   const token = randomUUID();
-  activeSessions.set(token, { email, createdAt: Date.now() });
 
   try {
     // Find customer by email to get their orders
@@ -490,12 +497,14 @@ app.post("/api/verify-otp", async (req, res) => {
     const customer = customerResult.customers[0];
 
     if (!customer) {
+      activeSessions.set(token, { email, customerId: "", createdAt: Date.now() });
       res.json({ token, message: "Verified, but no customer found with this email." });
       return;
     }
 
     // Extract numeric ID from Global ID (gid://shopify/Customer/123456)
-    const customerId = customer.id.split('/').pop();
+    const customerId = customer.id.split('/').pop()!;
+    activeSessions.set(token, { email, customerId, createdAt: Date.now() });
     const ordersResult = await getCustomerOrders.execute({ customerId, limit: 10 });
 
     res.json({
