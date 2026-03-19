@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import express from "express";
 import dotenv from "dotenv";
 import { GraphQLClient } from "graphql-request";
@@ -407,33 +407,11 @@ app.use((req, res, next) => {
   next();
 });
 
-let activeTransport: SSEServerTransport | null = null;
-
-app.get("/sse", async (req, res) => {
-  console.log("New SSE connection established");
-  activeTransport = new SSEServerTransport("/messages", res);
-  await server.connect(activeTransport);
-
-  res.on("close", () => {
-    console.log("SSE connection closed");
-    activeTransport = null;
-  });
-});
-
-app.post("/messages", async (req, res) => {
-  console.log("Received message");
-
-  if (!activeTransport) {
-    res.status(503).send("No active SSE connection");
-    return;
-  }
-
-  try {
-    await activeTransport.handlePostMessage(req, res);
-  } catch (error) {
-    console.error("Error handling message:", error);
-    res.status(500).send("Internal Server Error");
-  }
+app.post("/mcp", async (req, res) => {
+  console.log("New MCP request");
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: randomUUID });
+  await server.connect(transport);
+  await transport.handleRequest(req, res, req.body);
 });
 
 // Add health check route
