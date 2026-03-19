@@ -147,22 +147,24 @@ server.tool(
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     otpStorage.set(email, { code, expires: Date.now() + 5 * 60 * 1000 }); // 5 minutes
 
-    try {
-      await resend.emails.send({
+    const { error: resendError } = await resend.emails.send({
         from: "onboarding@resend.dev",
         to: email,
         subject: "Your Shopify Order Access Code",
         html: `<p>Your verification code is: <strong>${code}</strong></p>`
       });
+
+      if (resendError) {
+        console.error("Resend error:", resendError);
+        return {
+          isError: true,
+          content: [{ type: "text", text: `Failed to send OTP: ${JSON.stringify(resendError)}` }]
+        };
+      }
+
       return {
         content: [{ type: "text", text: `OTP sent to ${email}` }]
       };
-    } catch (error) {
-      return {
-        isError: true,
-        content: [{ type: "text", text: `Failed to send OTP: ${error}` }]
-      };
-    }
   }
 );
 
@@ -448,17 +450,20 @@ app.post("/api/request-otp", async (req, res) => {
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   otpStorage.set(email, { code, expires: Date.now() + 5 * 60 * 1000 }); // 5 minutes
 
-  try {
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: email,
-      subject: "Your Shopify Order Access Code",
-      html: `<p>Your verification code is: <strong>${code}</strong></p>`
-    });
-    res.json({ message: `OTP sent to ${email}` });
-  } catch (error) {
-    res.status(500).json({ error: `Failed to send OTP: ${error}` });
+  const { error: resendError } = await resend.emails.send({
+    from: "onboarding@resend.dev",
+    to: email,
+    subject: "Your Shopify Order Access Code",
+    html: `<p>Your verification code is: <strong>${code}</strong></p>`
+  });
+
+  if (resendError) {
+    console.error("Resend error:", resendError);
+    res.status(500).json({ error: `Failed to send OTP: ${JSON.stringify(resendError)}` });
+    return;
   }
+
+  res.json({ message: `OTP sent to ${email}` });
 });
 
 app.post("/api/verify-otp", async (req, res) => {
