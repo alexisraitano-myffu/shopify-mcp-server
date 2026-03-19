@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import express from "express";
 import dotenv from "dotenv";
 import { GraphQLClient } from "graphql-request";
@@ -407,30 +407,28 @@ app.use((req, res, next) => {
   next();
 });
 
-const mcpTransports = new Map<string, StreamableHTTPServerTransport>();
+const mcpSessions = new Map<string, SSEServerTransport>();
 
-app.all("/mcp", async (req, res) => {
-  const sessionId = req.headers["mcp-session-id"] as string | undefined;
-  console.log(`MCP ${req.method} request, sessionId: ${sessionId ?? "none"}`);
+app.get("/mcp", async (req, res) => {
+  console.log("MCP SSE connection established");
+  const transport = new SSEServerTransport("/mcp", res);
+  mcpSessions.set(transport.sessionId, transport);
+  await server.connect(transport);
+  res.on("close", () => {
+    console.log(`MCP SSE connection closed: ${transport.sessionId}`);
+    mcpSessions.delete(transport.sessionId);
+  });
+});
 
-  if (sessionId && mcpTransports.has(sessionId)) {
-    // Existing session
-    await mcpTransports.get(sessionId)!.handleRequest(req, res, req.body);
-  } else if (req.method === "POST") {
-    // New session initialization
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: randomUUID });
-    transport.onclose = () => {
-      if (transport.sessionId) mcpTransports.delete(transport.sessionId);
-    };
-    await server.connect(transport);
-    if (transport.sessionId) mcpTransports.set(transport.sessionId, transport);
-    await transport.handleRequest(req, res, req.body);
-  } else {
-    // GET without session ID — stateless SSE stream (Voiceflow compatibility)
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    await server.connect(transport);
-    await transport.handleRequest(req, res, req.body);
+app.post("/mcp", async (req, res) => {
+  const sessionId = req.query.sessionId as string | undefined;
+  console.log(`MCP POST message, sessionId: ${sessionId ?? "none"}`);
+  const transport = sessionId ? mcpSessions.get(sessionId) : undefined;
+  if (!transport) {
+    res.status(503).json({ error: "No active MCP session" });
+    return;
   }
+  await transport.handlePostMessage(req, res);
 });
 
 // Add health check route
