@@ -413,7 +413,10 @@ app.all("/mcp", async (req, res) => {
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
   console.log(`MCP ${req.method} request, sessionId: ${sessionId ?? "none"}`);
 
-  if (req.method === "POST" && !sessionId) {
+  if (sessionId && mcpTransports.has(sessionId)) {
+    // Existing session
+    await mcpTransports.get(sessionId)!.handleRequest(req, res, req.body);
+  } else if (req.method === "POST") {
     // New session initialization
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: randomUUID });
     transport.onclose = () => {
@@ -422,10 +425,11 @@ app.all("/mcp", async (req, res) => {
     await server.connect(transport);
     if (transport.sessionId) mcpTransports.set(transport.sessionId, transport);
     await transport.handleRequest(req, res, req.body);
-  } else if (sessionId && mcpTransports.has(sessionId)) {
-    await mcpTransports.get(sessionId)!.handleRequest(req, res, req.body);
   } else {
-    res.status(400).json({ error: "Invalid or missing session ID" });
+    // GET without session ID — stateless SSE stream (Voiceflow compatibility)
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    await server.connect(transport);
+    await transport.handleRequest(req, res, req.body);
   }
 });
 
