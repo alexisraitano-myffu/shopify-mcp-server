@@ -428,7 +428,7 @@ app.post("/mcp", async (req, res) => {
     res.status(503).json({ error: "No active MCP session" });
     return;
   }
-  await transport.handlePostMessage(req, res);
+  await transport.handlePostMessage(req, res, req.body);
 });
 
 // Add health check route
