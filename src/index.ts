@@ -407,11 +407,26 @@ app.use((req, res, next) => {
   next();
 });
 
-app.post("/mcp", async (req, res) => {
-  console.log("New MCP request");
-  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: randomUUID });
-  await server.connect(transport);
-  await transport.handleRequest(req, res, req.body);
+const mcpTransports = new Map<string, StreamableHTTPServerTransport>();
+
+app.all("/mcp", async (req, res) => {
+  const sessionId = req.headers["mcp-session-id"] as string | undefined;
+  console.log(`MCP ${req.method} request, sessionId: ${sessionId ?? "none"}`);
+
+  if (req.method === "POST" && !sessionId) {
+    // New session initialization
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: randomUUID });
+    transport.onclose = () => {
+      if (transport.sessionId) mcpTransports.delete(transport.sessionId);
+    };
+    await server.connect(transport);
+    if (transport.sessionId) mcpTransports.set(transport.sessionId, transport);
+    await transport.handleRequest(req, res, req.body);
+  } else if (sessionId && mcpTransports.has(sessionId)) {
+    await mcpTransports.get(sessionId)!.handleRequest(req, res, req.body);
+  } else {
+    res.status(400).json({ error: "Invalid or missing session ID" });
+  }
 });
 
 // Add health check route
