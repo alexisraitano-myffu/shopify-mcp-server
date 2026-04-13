@@ -320,6 +320,8 @@ server.tool(
     limit: z.number().default(5)
   },
   async ({ token, limit }) => {
+    console.log('Token reçu:', token);
+    console.log('Sessions actives:', [...activeSessions.keys()]);
     const session = activeSessions.get(token);
 
     if (!session || Date.now() > session.createdAt + 3600 * 1000) {
