@@ -332,7 +332,7 @@ server.tool(
       };
     }
 
-    const result = await getCustomerOrders.execute({ customerId: session.customerId, limit });
+    const result = await getCustomerOrders.execute({ customerId: session.customerId || undefined, email: session.email, limit });
     return {
       content: [{ type: "text", text: JSON.stringify(result) }]
     };

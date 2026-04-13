@@ -4,7 +4,8 @@ import { z } from "zod";
 
 // Input schema for getting customer orders
 const GetCustomerOrdersInputSchema = z.object({
-  customerId: z.string().regex(/^\d+$/, "Customer ID must be numeric"),
+  customerId: z.string().optional(),
+  email: z.string().optional(),
   limit: z.number().default(10)
 });
 
@@ -25,10 +26,11 @@ const getCustomerOrders = {
 
   execute: async (input: GetCustomerOrdersInput) => {
     try {
-      const { customerId, limit } = input;
+      const { customerId, email, limit } = input;
 
-      // Convert the numeric customer ID to the GID format
-      const customerGid = `gid://shopify/Customer/${customerId}`;
+      if (!customerId && !email) {
+        throw new Error("Either customerId or email must be provided");
+      }
 
       // Query to get orders for a specific customer
       const query = gql`
@@ -99,9 +101,10 @@ const getCustomerOrders = {
         }
       `;
 
-      // We use the query parameter to filter orders by customer ID
+      // Filter by customerId if available, otherwise fall back to email
+      const queryFilter = customerId ? `customer_id:${customerId}` : `email:${email}`;
       const variables = {
-        query: `customer_id:${customerId}`,
+        query: queryFilter,
         first: limit
       };
 
