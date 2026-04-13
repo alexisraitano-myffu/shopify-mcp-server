@@ -317,7 +317,7 @@ server.tool(
   "get-customer-orders",
   {
     token: z.string().describe("OTP verification token"),
-    limit: z.number().default(5)
+    limit: z.coerce.number().default(5)
   },
   async ({ token, limit }) => {
     console.log('Token reçu:', token);
