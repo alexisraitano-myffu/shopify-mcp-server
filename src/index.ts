@@ -42,7 +42,7 @@ const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
 
 function logEvent(payload: Record<string, unknown>) {
   if (!supabase) return;
-  supabase.from('events').insert(payload).then(({ error }) => {
+  supabase.from('events').insert({ ...payload, shop_domain: process.env.SHOP_DOMAIN }).then(({ error }) => {
     if (error) console.error('[Supabase] insert error:', JSON.stringify(error));
   });
 }
