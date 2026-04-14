@@ -40,8 +40,6 @@ const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
   : null;
 
-console.log('[Supabase] client initialized:', supabase ? 'yes' : 'no (missing env vars)');
-
 function logEvent(payload: Record<string, unknown>) {
   if (!supabase) return;
   supabase.from('events').insert(payload).then(({ error }) => {
@@ -335,9 +333,7 @@ server.tool(
     limit: z.coerce.number().default(5)
   },
   async ({ token, limit }) => {
-    console.log('Token reçu:', token);
-    console.log('Sessions actives:', [...activeSessions.keys()]);
-    const session = activeSessions.get(token);
+const session = activeSessions.get(token);
 
     if (!session || Date.now() > session.createdAt + 3600 * 1000) {
       if (session) activeSessions.delete(token);
