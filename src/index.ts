@@ -35,11 +35,10 @@ const MYSHOPIFY_DOMAIN = argv.domain || process.env.MYSHOPIFY_DOMAIN;
 const PORT = Number(process.env.PORT) || 8080;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
-// Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!
-);
+// Supabase client (optional — disabled if env vars are missing)
+const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
+  : null;
 
 // OTP Storage
 const otpStorage = new Map<string, { code: string; expires: number }>();
@@ -333,7 +332,7 @@ server.tool(
 
     if (!session || Date.now() > session.createdAt + 3600 * 1000) {
       if (session) activeSessions.delete(token);
-      supabase.from('events').insert({ event_type: 'token_expired', email: session?.email, success: false, error_code: '401' });
+      supabase?.from('events').insert({ event_type: 'token_expired', email: session?.email, success: false, error_code: '401' });
       return {
         isError: true,
         content: [{ type: "text", text: "Session expirée, veuillez vous réauthentifier" }]
@@ -342,7 +341,7 @@ server.tool(
 
     const start = Date.now();
     const result = await getCustomerOrders.execute({ customerId: session.customerId || undefined, email: session.email, limit });
-    supabase.from('events').insert({ event_type: 'orders_fetched', email: session.email, success: true, orders_count: result.orders.length, latency_ms: Date.now() - start });
+    supabase?.from('events').insert({ event_type: 'orders_fetched', email: session.email, success: true, orders_count: result.orders.length, latency_ms: Date.now() - start });
     return {
       content: [{ type: "text", text: JSON.stringify(result) }]
     };
@@ -478,7 +477,7 @@ app.post("/api/request-otp", async (req, res) => {
     return;
   }
 
-  supabase.from('events').insert({ event_type: 'otp_requested', email });
+  supabase?.from('events').insert({ event_type: 'otp_requested', email });
   res.json({ message: `OTP sent to ${email}` });
 });
 
@@ -492,7 +491,7 @@ app.post("/api/verify-otp", async (req, res) => {
 
   const stored = otpStorage.get(email);
   if (!stored || stored.code !== code || Date.now() > stored.expires) {
-    supabase.from('events').insert({ event_type: 'otp_failed', email, success: false });
+    supabase?.from('events').insert({ event_type: 'otp_failed', email, success: false });
     res.status(401).json({ error: "Invalid or expired OTP" });
     return;
   }
@@ -507,7 +506,7 @@ app.post("/api/verify-otp", async (req, res) => {
 
     if (!customer) {
       activeSessions.set(token, { email, customerId: "", createdAt: Date.now() });
-      supabase.from('events').insert({ event_type: 'otp_verified', email, success: true });
+      supabase?.from('events').insert({ event_type: 'otp_verified', email, success: true });
       res.json({ token, message: "Verified, but no customer found with this email." });
       return;
     }
@@ -517,7 +516,7 @@ app.post("/api/verify-otp", async (req, res) => {
     activeSessions.set(token, { email, customerId, createdAt: Date.now() });
     const ordersResult = await getCustomerOrders.execute({ customerId, limit: 10 });
 
-    supabase.from('events').insert({ event_type: 'otp_verified', email, success: true });
+    supabase?.from('events').insert({ event_type: 'otp_verified', email, success: true });
     res.json({
       token,
       firstName: customer.firstName,
