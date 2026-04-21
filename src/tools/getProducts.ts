@@ -5,7 +5,7 @@ import { z } from "zod";
 // Input schema for getProducts
 const GetProductsInputSchema = z.object({
   searchTitle: z.string().optional(),
-  limit: z.number().default(10)
+  limit: z.coerce.number().default(10)
 });
 
 type GetProductsInput = z.infer<typeof GetProductsInputSchema>;

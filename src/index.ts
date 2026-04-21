@@ -113,7 +113,7 @@ server.tool(
   "get-products",
   {
     searchTitle: z.string().optional(),
-    limit: z.number().default(10)
+    limit: z.coerce.number().default(10)
   },
   async (args) => {
     const result = await getProducts.execute(args);
