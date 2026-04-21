@@ -80,7 +80,7 @@ const resend = new Resend(RESEND_API_KEY);
 
 // Create Shopify GraphQL client
 const shopifyClient = new GraphQLClient(
-  `https://${MYSHOPIFY_DOMAIN}/admin/api/2023-07/graphql.json`,
+  `https://${MYSHOPIFY_DOMAIN}/admin/api/2025-01/graphql.json`,
   {
     headers: {
       "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
