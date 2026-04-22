@@ -125,9 +125,48 @@
     .loading{opacity:0.4;pointer-events:none}
     .skeleton{display:inline-block;background:linear-gradient(90deg,var(--light) 25%,var(--border) 50%,var(--light) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:4px;color:transparent;min-width:60px}
     @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* MOBILE */
+    .mobile-topbar{display:none}
+    .mobile-nav{display:none}
+    @media(max-width:768px){
+      .layout{grid-template-columns:1fr}
+      .sidebar{display:none}
+      .main{padding:16px}
+      .mobile-topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--white);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+      .mobile-logo{font-family:var(--serif);font-size:18px}
+      .mobile-logo span{color:var(--coral)}
+      .mobile-shop{font-size:11px;color:var(--mid);text-align:right}
+      .mobile-nav{display:flex;overflow-x:auto;background:var(--white);border-bottom:1px solid var(--border);padding:0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;position:sticky;top:49px;z-index:9}
+      .mobile-nav::-webkit-scrollbar{display:none}
+      .mobile-nav-item{flex-shrink:0;padding:11px 14px;font-size:13px;font-weight:500;color:var(--mid);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+      .mobile-nav-item.active{color:var(--coral);border-bottom-color:var(--coral)}
+      .header{margin-bottom:20px;flex-wrap:wrap;gap:12px}
+      .header h1{font-size:22px}
+      .kpi-grid{grid-template-columns:1fr 1fr}
+      .kpi-value{font-size:28px}
+      .chart-wrap{height:140px}
+      .bottom-grid{grid-template-columns:1fr}
+      .table-section{overflow-x:auto}
+      .data-table{min-width:500px}
+      .data-table th,.data-table td{padding:10px 16px}
+      .coming-soon{padding:48px 20px}
+    }
   </style>
 </head>
 <body>
+
+<div class="mobile-topbar">
+  <div class="mobile-logo">Navi<span>.</span></div>
+  <div class="mobile-shop" id="mobile-shop-name">—</div>
+</div>
+<div class="mobile-nav">
+  <div class="mobile-nav-item active" data-view="overview" onclick="showView('overview')">Vue d'ensemble</div>
+  <div class="mobile-nav-item" data-view="conversations" onclick="showView('conversations')">Conversations</div>
+  <div class="mobile-nav-item" data-view="commandes" onclick="showView('commandes')">Commandes</div>
+  <div class="mobile-nav-item" data-view="sav" onclick="showView('sav')">SAV</div>
+  <div class="mobile-nav-item" data-view="settings" onclick="showView('settings')">Paramètres</div>
+</div>
 
 <div class="layout">
   <aside class="sidebar">
@@ -137,11 +176,11 @@
       <strong id="shop-name">—</strong>
     </div>
     <nav class="sidebar-nav">
-      <div class="nav-item active" onclick="showView('overview',this)"><span class="nav-dot"></span>Vue d'ensemble</div>
-      <div class="nav-item" onclick="showView('conversations',this)"><span class="nav-dot"></span>Conversations</div>
-      <div class="nav-item" onclick="showView('commandes',this)"><span class="nav-dot"></span>Commandes</div>
-      <div class="nav-item" onclick="showView('sav',this)"><span class="nav-dot"></span>SAV</div>
-      <div class="nav-item" onclick="showView('settings',this)"><span class="nav-dot"></span>Paramètres</div>
+      <div class="nav-item active" data-view="overview" onclick="showView('overview')"><span class="nav-dot"></span>Vue d'ensemble</div>
+      <div class="nav-item" data-view="conversations" onclick="showView('conversations')"><span class="nav-dot"></span>Conversations</div>
+      <div class="nav-item" data-view="commandes" onclick="showView('commandes')"><span class="nav-dot"></span>Commandes</div>
+      <div class="nav-item" data-view="sav" onclick="showView('sav')"><span class="nav-dot"></span>SAV</div>
+      <div class="nav-item" data-view="settings" onclick="showView('settings')"><span class="nav-dot"></span>Paramètres</div>
     </nav>
     <div class="sidebar-footer">
       <strong>Navi Pro</strong>
@@ -301,6 +340,7 @@ const sb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 const SHOP = window.SHOP_DOMAIN;
 
 document.getElementById('shop-name').textContent = SHOP || '—';
+document.getElementById('mobile-shop-name').textContent = SHOP || '—';
 
 let currentPeriod = 7;
 let currentView = 'overview';
@@ -328,12 +368,12 @@ const VIEW_TITLES = {
 };
 
 /* ── NAVIGATION ── */
-function showView(name, navEl) {
+function showView(name) {
   currentView = name;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + name).classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  if (navEl) navEl.classList.add('active');
+  document.querySelectorAll('.nav-item, .mobile-nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll(`[data-view="${name}"]`).forEach(el => el.classList.add('active'));
   document.getElementById('page-title').innerHTML = VIEW_TITLES[name] || name;
 
   if (name === 'overview')           loadOverview();
