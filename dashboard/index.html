@@ -34,6 +34,10 @@
     /* MAIN */
     .main{padding:32px;overflow-y:auto}
 
+    /* VIEWS */
+    .view{display:none}
+    .view.active{display:block}
+
     /* HEADER */
     .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px}
     .header h1{font-family:var(--serif);font-size:28px;font-weight:400}
@@ -95,6 +99,27 @@
     .donut-bar{height:4px;border-radius:2px;transition:width 0.6s ease}
     .donut-stat-val{font-size:12px;font-weight:600;min-width:32px;text-align:right;flex-shrink:0}
 
+    /* TABLE */
+    .table-section{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .table-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+    .table-title{font-size:14px;font-weight:600}
+    .table-count{font-size:12px;color:var(--mid)}
+    .data-table{width:100%;border-collapse:collapse}
+    .data-table th{font-size:11px;font-weight:500;color:var(--mid);text-transform:uppercase;letter-spacing:0.06em;padding:12px 24px;text-align:left;background:var(--light);border-bottom:1px solid var(--border)}
+    .data-table td{font-size:13px;padding:14px 24px;border-bottom:1px solid var(--border);color:var(--dark)}
+    .data-table tr:last-child td{border-bottom:none}
+    .data-table tbody tr:hover td{background:var(--light)}
+    .data-table .cell-mid{color:var(--mid)}
+    .data-table .cell-mono{font-variant-numeric:tabular-nums}
+    .table-empty{text-align:center;padding:48px 24px;color:var(--mid);font-size:13px}
+
+    /* COMING SOON */
+    .coming-soon{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 40px;text-align:center;background:var(--white);border:1px solid var(--border);border-radius:12px}
+    .coming-soon-icon{font-size:36px;margin-bottom:20px;opacity:0.5}
+    .coming-soon-title{font-family:var(--serif);font-size:26px;font-weight:400;margin-bottom:10px}
+    .coming-soon-title em{font-style:italic;color:var(--coral)}
+    .coming-soon-text{font-size:13px;color:var(--mid);max-width:320px;line-height:1.6}
+
     /* LOADING */
     .loading{opacity:0.4;pointer-events:none}
     .skeleton{display:inline-block;background:linear-gradient(90deg,var(--light) 25%,var(--border) 50%,var(--light) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:4px;color:transparent;min-width:60px}
@@ -111,11 +136,11 @@
       <strong id="shop-name">—</strong>
     </div>
     <nav class="sidebar-nav">
-      <div class="nav-item active"><span class="nav-dot"></span>Vue d'ensemble</div>
-      <div class="nav-item"><span class="nav-dot"></span>Conversations</div>
-      <div class="nav-item"><span class="nav-dot"></span>Commandes</div>
-      <div class="nav-item"><span class="nav-dot"></span>SAV</div>
-      <div class="nav-item"><span class="nav-dot"></span>Paramètres</div>
+      <div class="nav-item active" onclick="showView('overview',this)"><span class="nav-dot"></span>Vue d'ensemble</div>
+      <div class="nav-item" onclick="showView('conversations',this)"><span class="nav-dot"></span>Conversations</div>
+      <div class="nav-item" onclick="showView('commandes',this)"><span class="nav-dot"></span>Commandes</div>
+      <div class="nav-item" onclick="showView('sav',this)"><span class="nav-dot"></span>SAV</div>
+      <div class="nav-item" onclick="showView('settings',this)"><span class="nav-dot"></span>Paramètres</div>
     </nav>
     <div class="sidebar-footer">
       <strong>Navi Pro</strong>
@@ -125,64 +150,131 @@
 
   <main class="main">
     <div class="header">
-      <h1>Vue d'<em>ensemble</em></h1>
+      <h1 id="page-title">Vue d'<em>ensemble</em></h1>
       <div class="period-toggle">
         <button class="period-btn active" onclick="setPeriod(7,this)">7 jours</button>
         <button class="period-btn" onclick="setPeriod(30,this)">30 jours</button>
       </div>
     </div>
 
-    <div class="kpi-grid">
-      <div class="kpi-card featured">
-        <div class="kpi-label">Conversations</div>
-        <div class="kpi-value" id="kpi-conv">—</div>
-        <div class="kpi-trend" id="trend-conv"></div>
-        <div class="kpi-accent"></div>
+    <!-- VUE D'ENSEMBLE -->
+    <div class="view active" id="view-overview">
+      <div class="kpi-grid">
+        <div class="kpi-card featured">
+          <div class="kpi-label">Conversations</div>
+          <div class="kpi-value" id="kpi-conv">—</div>
+          <div class="kpi-trend" id="trend-conv"></div>
+          <div class="kpi-accent"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Taux OTP réussi</div>
+          <div class="kpi-value" id="kpi-otp">—</div>
+          <div class="kpi-trend" id="trend-otp"></div>
+          <div class="kpi-accent"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Commandes trouvées</div>
+          <div class="kpi-value" id="kpi-orders">—</div>
+          <div class="kpi-trend" id="trend-orders"></div>
+          <div class="kpi-accent"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Erreurs 401</div>
+          <div class="kpi-value" id="kpi-errors">—</div>
+          <div class="kpi-trend" id="trend-errors"></div>
+          <div class="kpi-accent"></div>
+        </div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Taux OTP réussi</div>
-        <div class="kpi-value" id="kpi-otp">—</div>
-        <div class="kpi-trend" id="trend-otp"></div>
-        <div class="kpi-accent"></div>
+
+      <div class="chart-section">
+        <div class="chart-header">
+          <div class="chart-title">Conversations par jour</div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--coral)"></div>Conversations</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--dark)"></div>Commandes</div>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart"></canvas>
+        </div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Commandes trouvées</div>
-        <div class="kpi-value" id="kpi-orders">—</div>
-        <div class="kpi-trend" id="trend-orders"></div>
-        <div class="kpi-accent"></div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Erreurs 401</div>
-        <div class="kpi-value" id="kpi-errors">—</div>
-        <div class="kpi-trend" id="trend-errors"></div>
-        <div class="kpi-accent"></div>
+
+      <div class="bottom-grid">
+        <div class="panel">
+          <div class="panel-title">Derniers événements <span class="panel-subtitle">temps réel</span></div>
+          <div class="event-list" id="event-list"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Répartition des demandes</div>
+          <div class="donut-wrap">
+            <div class="donut-canvas-wrap"><canvas id="donut"></canvas></div>
+            <div class="donut-stats" id="donut-stats"></div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="chart-section">
-      <div class="chart-header">
-        <div class="chart-title">Conversations par jour</div>
-        <div class="chart-legend">
-          <div class="legend-item"><div class="legend-dot" style="background:var(--coral)"></div>Conversations</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--dark)"></div>Commandes</div>
+    <!-- CONVERSATIONS -->
+    <div class="view" id="view-conversations">
+      <div class="table-section">
+        <div class="table-header">
+          <div class="table-title">Historique des conversations</div>
+          <div class="table-count" id="conv-count"></div>
         </div>
-      </div>
-      <div class="chart-wrap">
-        <canvas id="chart"></canvas>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date / Heure</th>
+              <th>Type de demande</th>
+              <th>Statut</th>
+              <th>Latence</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-conversations">
+            <tr><td colspan="4" class="table-empty">Chargement…</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
-    <div class="bottom-grid">
-      <div class="panel">
-        <div class="panel-title">Derniers événements <span class="panel-subtitle">temps réel</span></div>
-        <div class="event-list" id="event-list"></div>
-      </div>
-      <div class="panel">
-        <div class="panel-title">Répartition des demandes</div>
-        <div class="donut-wrap">
-          <div class="donut-canvas-wrap"><canvas id="donut"></canvas></div>
-          <div class="donut-stats" id="donut-stats"></div>
+    <!-- COMMANDES -->
+    <div class="view" id="view-commandes">
+      <div class="table-section">
+        <div class="table-header">
+          <div class="table-title">Suivi des commandes</div>
+          <div class="table-count" id="cmd-count"></div>
         </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date / Heure</th>
+              <th>Email</th>
+              <th>Nb commandes</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-commandes">
+            <tr><td colspan="4" class="table-empty">Chargement…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SAV -->
+    <div class="view" id="view-sav">
+      <div class="coming-soon">
+        <div class="coming-soon-icon">🔧</div>
+        <div class="coming-soon-title">Disponible <em>prochainement</em></div>
+        <div class="coming-soon-text">Les logs SAV seront disponibles dès que le suivi sera activé côté serveur.</div>
+      </div>
+    </div>
+
+    <!-- PARAMÈTRES -->
+    <div class="view" id="view-settings">
+      <div class="coming-soon">
+        <div class="coming-soon-icon">⚙️</div>
+        <div class="coming-soon-title">Para<em>mètres</em></div>
+        <div class="coming-soon-text">La configuration sera disponible prochainement.</div>
       </div>
     </div>
   </main>
@@ -197,52 +289,102 @@ const SHOP = window.SHOP_DOMAIN;
 document.getElementById('shop-name').textContent = SHOP || '—';
 
 let currentPeriod = 7;
+let currentView = 'overview';
 let lineChart, donutChart;
 
 const TYPE_LABELS = {
   otp_requested:  'Authentification',
   otp_verified:   'OTP vérifié',
+  otp_failed:     'OTP échoué',
   orders_fetched: 'Suivi commandes',
+  token_expired:  'Session expirée',
   recommendation: 'Recommandations',
   sav:            'SAV / retours',
 };
 
-const DONUT_COLORS = ['#E8704A', '#0F0E0C', '#B4B2A9', '#F5C4B3'];
-
+const DONUT_COLORS = ['#E8704A','#0F0E0C','#B4B2A9','#F5C4B3'];
 const DAY_NAMES = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 
+const VIEW_TITLES = {
+  overview:      "Vue d'<em>ensemble</em>",
+  conversations: "Conver<em>sations</em>",
+  commandes:     "Com<em>mandes</em>",
+  sav:           "S<em>AV</em>",
+  settings:      "Para<em>mètres</em>",
+};
+
+/* ── NAVIGATION ── */
+function showView(name, navEl) {
+  currentView = name;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (navEl) navEl.classList.add('active');
+  document.getElementById('page-title').innerHTML = VIEW_TITLES[name] || name;
+
+  if (name === 'overview')       loadOverview();
+  else if (name === 'conversations') loadConversations();
+  else if (name === 'commandes')     loadCommandes();
+}
+
+function setPeriod(days, btn) {
+  currentPeriod = days;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (currentView === 'overview')       loadOverview();
+  else if (currentView === 'conversations') loadConversations();
+  else if (currentView === 'commandes')     loadCommandes();
+}
+
+/* ── HELPERS ── */
 function sinceISO(days) {
   const d = new Date();
   d.setDate(d.getDate() - days);
   return d.toISOString();
 }
 
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+    + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
 function timeAgo(iso) {
   const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
-  if (diff < 60)   return `Il y a ${diff}s`;
-  if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`;
+  if (diff < 60)    return `Il y a ${diff}s`;
+  if (diff < 3600)  return `Il y a ${Math.floor(diff / 60)} min`;
   if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)}h`;
   return `Il y a ${Math.floor(diff / 86400)}j`;
 }
 
+function maskEmail(email) {
+  if (!email) return '—';
+  const at = email.indexOf('@');
+  if (at < 0) return email;
+  const local  = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  return local.slice(0, 2) + '***@' + domain;
+}
+
+function badgeHtml(success, errorCode) {
+  if (errorCode === '401') return '<span class="event-badge badge-amber">Expiré</span>';
+  if (success === true)    return '<span class="event-badge badge-green">Succès</span>';
+  if (success === false)   return '<span class="event-badge badge-red">Échec</span>';
+  return '<span class="event-badge badge-amber">Info</span>';
+}
+
 function eventMeta(ev) {
-  const iconMap = {
-    otp_requested:  '🔑',
-    otp_verified:   '🔑',
-    orders_fetched: '📦',
-    recommendation: '🛍️',
-    sav:            '💬',
-  };
-  if (ev.error_code === '401') {
-    return { icon: '⚠️', name: 'Session expirée (401)', badge: 'badge-amber', label: 'Expiré' };
-  }
-  const icon = iconMap[ev.event_type] || '●';
-  const name = TYPE_LABELS[ev.event_type] || ev.event_type;
+  const iconMap = { otp_requested:'🔑', otp_verified:'🔑', orders_fetched:'📦', recommendation:'🛍️', sav:'💬' };
+  if (ev.error_code === '401')
+    return { icon:'⚠️', name:'Session expirée (401)', badge:'badge-amber', label:'Expiré' };
+  const icon  = iconMap[ev.event_type] || '●';
+  const name  = TYPE_LABELS[ev.event_type] || ev.event_type;
   const badge = ev.success === true ? 'badge-green' : ev.success === false ? 'badge-red' : 'badge-amber';
-  const label = ev.success === true ? 'Succès' : ev.success === false ? 'Échec' : 'Info';
+  const label = ev.success === true ? 'Succès'      : ev.success === false ? 'Échec'     : 'Info';
   return { icon, name, badge, label };
 }
 
+/* ── OVERVIEW FETCH ── */
 async function fetchKPIs(since) {
   const base = () =>
     sb.from('events').select('*', { count: 'exact', head: true })
@@ -289,8 +431,8 @@ async function fetchChart(since, days) {
     labels.push(days <= 7 ? DAY_NAMES[d.getDay()] : key.slice(5).replace('-', '/'));
   }
 
-  const convByDay    = Object.fromEntries(keys.map(k => [k, 0]));
-  const ordersByDay  = Object.fromEntries(keys.map(k => [k, 0]));
+  const convByDay   = Object.fromEntries(keys.map(k => [k, 0]));
+  const ordersByDay = Object.fromEntries(keys.map(k => [k, 0]));
 
   (data || []).forEach(e => {
     const day = e.created_at.slice(0, 10);
@@ -298,11 +440,7 @@ async function fetchChart(since, days) {
     if (e.event_type === 'orders_fetched' && day in ordersByDay) ordersByDay[day]++;
   });
 
-  return {
-    labels,
-    conversations: keys.map(k => convByDay[k]),
-    commandes:     keys.map(k => ordersByDay[k]),
-  };
+  return { labels, conversations: keys.map(k => convByDay[k]), commandes: keys.map(k => ordersByDay[k]) };
 }
 
 async function fetchEvents(since) {
@@ -326,7 +464,7 @@ async function fetchRepartition(since) {
   const counts = {};
   data.forEach(e => { counts[e.event_type] = (counts[e.event_type] || 0) + 1; });
 
-  const total = data.length;
+  const total  = data.length;
   const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 4);
   const sumPct = sorted.reduce((acc, [, c]) => acc + Math.round((c / total) * 100), 0);
 
@@ -337,13 +475,37 @@ async function fetchRepartition(since) {
   }));
 }
 
+/* ── CONVERSATIONS FETCH ── */
+async function fetchConversations(since) {
+  const { data } = await sb.from('events')
+    .select('created_at, event_type, success, latency_ms, error_code')
+    .eq('shop_domain', SHOP)
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(200);
+  return data || [];
+}
+
+/* ── COMMANDES FETCH ── */
+async function fetchCommandes(since) {
+  const { data } = await sb.from('events')
+    .select('created_at, email, orders_count, success, error_code')
+    .eq('shop_domain', SHOP)
+    .eq('event_type', 'orders_fetched')
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(200);
+  return data || [];
+}
+
+/* ── RENDER OVERVIEW ── */
 function renderKPIs(kpis) {
   document.getElementById('kpi-conv').textContent   = kpis.conv.toLocaleString('fr');
   document.getElementById('kpi-otp').textContent    = kpis.otpRate    != null ? `${kpis.otpRate}%`    : 'N/A';
   document.getElementById('kpi-orders').textContent = kpis.ordersRate != null ? `${kpis.ordersRate}%` : 'N/A';
   document.getElementById('kpi-errors').textContent = kpis.err401.toLocaleString('fr');
   document.getElementById('trend-conv').textContent   = '';
-  document.getElementById('trend-otp').textContent    = kpis.otpRate    >= 80 ? '↑ bon' : kpis.otpRate != null ? '↓ à surveiller' : '';
+  document.getElementById('trend-otp').textContent    = kpis.otpRate    >= 80 ? '↑ bon' : kpis.otpRate    != null ? '↓ à surveiller' : '';
   document.getElementById('trend-orders').textContent = kpis.ordersRate >= 70 ? '↑ bon' : kpis.ordersRate != null ? '↓ à surveiller' : '';
   document.getElementById('trend-errors').textContent = kpis.err401 === 0 ? '✓ aucune erreur' : `⚠ ${kpis.err401} erreur${kpis.err401 > 1 ? 's' : ''}`;
 }
@@ -356,34 +518,16 @@ function renderChart(chartData) {
     data: {
       labels: chartData.labels,
       datasets: [
-        {
-          label: 'Conversations',
-          data: chartData.conversations,
-          backgroundColor: 'rgba(232,112,74,0.15)',
-          borderColor: '#E8704A',
-          borderWidth: 2,
-          borderRadius: 6,
-          type: 'bar',
-        },
-        {
-          label: 'Commandes',
-          data: chartData.commandes,
-          type: 'line',
-          borderColor: '#0F0E0C',
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          pointBackgroundColor: '#0F0E0C',
-          pointRadius: 3,
-          tension: 0.4,
-        },
+        { label:'Conversations', data:chartData.conversations, backgroundColor:'rgba(232,112,74,0.15)', borderColor:'#E8704A', borderWidth:2, borderRadius:6, type:'bar' },
+        { label:'Commandes',     data:chartData.commandes,     type:'line', borderColor:'#0F0E0C', backgroundColor:'transparent', borderWidth:2, pointBackgroundColor:'#0F0E0C', pointRadius:3, tension:0.4 },
       ],
     },
     options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { family: 'DM Sans', size: 11 }, color: '#6B6860' } },
-        y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { family: 'DM Sans', size: 11 }, color: '#6B6860' }, border: { display: false } },
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ grid:{ display:false }, ticks:{ font:{ family:'DM Sans', size:11 }, color:'#6B6860' } },
+        y:{ grid:{ color:'rgba(0,0,0,0.04)' }, ticks:{ font:{ family:'DM Sans', size:11 }, color:'#6B6860' }, border:{ display:false } },
       },
     },
   });
@@ -400,11 +544,11 @@ function renderDonut(repartition) {
     type: 'doughnut',
     data: {
       labels: repartition.map(r => r.label),
-      datasets: [{ data: repartition.map(r => r.val), backgroundColor: repartition.map(r => r.color), borderWidth: 0, hoverOffset: 4 }],
+      datasets: [{ data:repartition.map(r => r.val), backgroundColor:repartition.map(r => r.color), borderWidth:0, hoverOffset:4 }],
     },
     options: {
-      responsive: true, maintainAspectRatio: false, cutout: '72%',
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.raw}%` } } },
+      responsive:true, maintainAspectRatio:false, cutout:'72%',
+      plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: c => ` ${c.raw}%` } } },
     },
   });
 
@@ -442,7 +586,50 @@ function renderEvents(events) {
   }).join('');
 }
 
-async function loadAll() {
+/* ── RENDER CONVERSATIONS ── */
+function renderConversations(rows) {
+  const tbody = document.getElementById('tbody-conversations');
+  document.getElementById('conv-count').textContent = rows.length ? `${rows.length} entrée${rows.length > 1 ? 's' : ''}` : '';
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="table-empty">Aucune conversation sur cette période</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const latence = r.latency_ms != null ? `${r.latency_ms} ms` : '<span class="cell-mid">—</span>';
+    return `<tr>
+      <td class="cell-mid cell-mono">${fmtDate(r.created_at)}</td>
+      <td>${TYPE_LABELS[r.event_type] || r.event_type}</td>
+      <td>${badgeHtml(r.success, r.error_code)}</td>
+      <td class="cell-mono">${latence}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── RENDER COMMANDES ── */
+function renderCommandes(rows) {
+  const tbody = document.getElementById('tbody-commandes');
+  document.getElementById('cmd-count').textContent = rows.length ? `${rows.length} entrée${rows.length > 1 ? 's' : ''}` : '';
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="table-empty">Aucune commande consultée sur cette période</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const nb = r.orders_count != null ? r.orders_count : '<span class="cell-mid">—</span>';
+    return `<tr>
+      <td class="cell-mid cell-mono">${fmtDate(r.created_at)}</td>
+      <td>${maskEmail(r.email)}</td>
+      <td class="cell-mono">${nb}</td>
+      <td>${badgeHtml(r.success, r.error_code)}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── LOAD FUNCTIONS ── */
+async function loadOverview() {
   const since = sinceISO(currentPeriod);
   const [kpis, chartData, events, repartition] = await Promise.all([
     fetchKPIs(since),
@@ -456,14 +643,21 @@ async function loadAll() {
   renderDonut(repartition);
 }
 
-function setPeriod(days, btn) {
-  currentPeriod = days;
-  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  loadAll();
+async function loadConversations() {
+  document.getElementById('tbody-conversations').innerHTML =
+    '<tr><td colspan="4" class="table-empty">Chargement…</td></tr>';
+  const rows = await fetchConversations(sinceISO(currentPeriod));
+  renderConversations(rows);
 }
 
-loadAll();
+async function loadCommandes() {
+  document.getElementById('tbody-commandes').innerHTML =
+    '<tr><td colspan="4" class="table-empty">Chargement…</td></tr>';
+  const rows = await fetchCommandes(sinceISO(currentPeriod));
+  renderCommandes(rows);
+}
+
+loadOverview();
 </script>
 
 </body>
