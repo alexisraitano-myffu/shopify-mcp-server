@@ -414,6 +414,22 @@ server.tool(
   }
 );
 
+// SAV logging tool — called by Voiceflow's SAV agent to log a support request
+server.tool(
+  "log-sav-request",
+  {
+    token: z.string().optional(),
+    email: z.string().email().optional(),
+  },
+  async ({ token, email }) => {
+    const sessionEmail = token ? activeSessions.get(token)?.email : undefined;
+    logEvent({ event_type: 'sav_request', email: email || sessionEmail, success: true });
+    return {
+      content: [{ type: "text", text: '{"success":true}' }]
+    };
+  }
+);
+
 // Initialize Express app
 const app = express();
 app.use(express.json());

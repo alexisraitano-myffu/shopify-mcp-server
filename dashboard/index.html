@@ -108,6 +108,7 @@
     .data-table th{font-size:11px;font-weight:500;color:var(--mid);text-transform:uppercase;letter-spacing:0.06em;padding:12px 24px;text-align:left;background:var(--light);border-bottom:1px solid var(--border)}
     .data-table td{font-size:13px;padding:14px 24px;border-bottom:1px solid var(--border);color:var(--dark)}
     .data-table tr:last-child td{border-bottom:none}
+    .data-table tbody tr:nth-child(even) td{background:rgba(247,245,242,0.6)}
     .data-table tbody tr:hover td{background:var(--light)}
     .data-table .cell-mid{color:var(--mid)}
     .data-table .cell-mono{font-variant-numeric:tabular-nums}
@@ -262,10 +263,23 @@
 
     <!-- SAV -->
     <div class="view" id="view-sav">
-      <div class="coming-soon">
-        <div class="coming-soon-icon">🔧</div>
-        <div class="coming-soon-title">Disponible <em>prochainement</em></div>
-        <div class="coming-soon-text">Les logs SAV seront disponibles dès que le suivi sera activé côté serveur.</div>
+      <div class="table-section">
+        <div class="table-header">
+          <div class="table-title">Demandes SAV</div>
+          <div class="table-count" id="sav-count"></div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date / Heure</th>
+              <th>Email</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-sav">
+            <tr><td colspan="3" class="table-empty">Chargement…</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -293,13 +307,13 @@ let currentView = 'overview';
 let lineChart, donutChart;
 
 const TYPE_LABELS = {
-  otp_requested:  'Authentification',
+  otp_requested:  'Nouvelle conversation',
   otp_verified:   'OTP vérifié',
   otp_failed:     'OTP échoué',
   orders_fetched: 'Suivi commandes',
   token_expired:  'Session expirée',
+  sav_request:    'Demande SAV',
   recommendation: 'Recommandations',
-  sav:            'SAV / retours',
 };
 
 const DONUT_COLORS = ['#E8704A','#0F0E0C','#B4B2A9','#F5C4B3'];
@@ -322,9 +336,10 @@ function showView(name, navEl) {
   if (navEl) navEl.classList.add('active');
   document.getElementById('page-title').innerHTML = VIEW_TITLES[name] || name;
 
-  if (name === 'overview')       loadOverview();
+  if (name === 'overview')           loadOverview();
   else if (name === 'conversations') loadConversations();
   else if (name === 'commandes')     loadCommandes();
+  else if (name === 'sav')           loadSAV();
 }
 
 function setPeriod(days, btn) {
@@ -334,6 +349,7 @@ function setPeriod(days, btn) {
   if (currentView === 'overview')       loadOverview();
   else if (currentView === 'conversations') loadConversations();
   else if (currentView === 'commandes')     loadCommandes();
+  else if (currentView === 'sav')           loadSAV();
 }
 
 /* ── HELPERS ── */
@@ -482,7 +498,7 @@ async function fetchConversations(since) {
     .eq('shop_domain', SHOP)
     .gte('created_at', since)
     .order('created_at', { ascending: false })
-    .limit(200);
+    .limit(50);
   return data || [];
 }
 
@@ -492,6 +508,18 @@ async function fetchCommandes(since) {
     .select('created_at, email, orders_count, success, error_code')
     .eq('shop_domain', SHOP)
     .eq('event_type', 'orders_fetched')
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(200);
+  return data || [];
+}
+
+/* ── SAV FETCH ── */
+async function fetchSAV(since) {
+  const { data } = await sb.from('events')
+    .select('created_at, email, success, error_code')
+    .eq('shop_domain', SHOP)
+    .eq('event_type', 'sav_request')
     .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(200);
@@ -628,6 +656,23 @@ function renderCommandes(rows) {
   }).join('');
 }
 
+/* ── RENDER SAV ── */
+function renderSAV(rows) {
+  const tbody = document.getElementById('tbody-sav');
+  document.getElementById('sav-count').textContent = rows.length ? `${rows.length} entrée${rows.length > 1 ? 's' : ''}` : '';
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="3" class="table-empty">Aucune demande SAV sur cette période</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td class="cell-mid cell-mono">${fmtDate(r.created_at)}</td>
+    <td>${maskEmail(r.email)}</td>
+    <td>${badgeHtml(r.success, r.error_code)}</td>
+  </tr>`).join('');
+}
+
 /* ── LOAD FUNCTIONS ── */
 async function loadOverview() {
   const since = sinceISO(currentPeriod);
@@ -655,6 +700,13 @@ async function loadCommandes() {
     '<tr><td colspan="4" class="table-empty">Chargement…</td></tr>';
   const rows = await fetchCommandes(sinceISO(currentPeriod));
   renderCommandes(rows);
+}
+
+async function loadSAV() {
+  document.getElementById('tbody-sav').innerHTML =
+    '<tr><td colspan="3" class="table-empty">Chargement…</td></tr>';
+  const rows = await fetchSAV(sinceISO(currentPeriod));
+  renderSAV(rows);
 }
 
 loadOverview();
