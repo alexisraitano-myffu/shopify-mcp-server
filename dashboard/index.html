@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Navi – Dashboard</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --coral:#E8704A;--coral-light:#F5C4B3;--coral-pale:#FDF0EB;
+      --dark:#0F0E0C;--mid:#6B6860;--light:#F7F5F2;--white:#FFFFFF;
+      --border:rgba(15,14,12,0.08);--green:#22C55E;--red:#EF4444;--amber:#F59E0B;
+      --serif:'Instrument Serif',Georgia,serif;--sans:'DM Sans',system-ui,sans-serif;
+    }
+    body{font-family:var(--sans);background:var(--light);color:var(--dark);min-height:100vh}
+
+    .layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+
+    /* SIDEBAR */
+    .sidebar{background:var(--white);border-right:1px solid var(--border);padding:24px 0;display:flex;flex-direction:column}
+    .sidebar-logo{font-family:var(--serif);font-size:20px;padding:0 24px 24px;border-bottom:1px solid var(--border)}
+    .sidebar-logo span{color:var(--coral)}
+    .sidebar-shop{padding:16px 24px;font-size:12px;color:var(--mid);border-bottom:1px solid var(--border)}
+    .sidebar-shop strong{display:block;font-size:13px;color:var(--dark);margin-top:2px}
+    .sidebar-nav{padding:16px 0;flex:1}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 24px;font-size:13px;font-weight:500;color:var(--mid);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent}
+    .nav-item:hover{color:var(--dark);background:var(--light)}
+    .nav-item.active{color:var(--coral);background:var(--coral-pale);border-left-color:var(--coral)}
+    .nav-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.5}
+    .sidebar-footer{padding:16px 24px;border-top:1px solid var(--border);font-size:12px;color:var(--mid)}
+    .sidebar-footer strong{display:block;font-size:11px;color:var(--dark);font-weight:600}
+
+    /* MAIN */
+    .main{padding:32px;overflow-y:auto}
+
+    /* HEADER */
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px}
+    .header h1{font-family:var(--serif);font-size:28px;font-weight:400}
+    .header h1 em{font-style:italic;color:var(--coral)}
+    .period-toggle{display:flex;background:var(--white);border:1px solid var(--border);border-radius:100px;padding:3px;gap:2px}
+    .period-btn{padding:6px 16px;border-radius:100px;border:none;font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;background:none;color:var(--mid);transition:all 0.15s}
+    .period-btn.active{background:var(--dark);color:var(--white)}
+
+    /* KPI */
+    .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+    .kpi-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px;position:relative;overflow:hidden;transition:transform 0.15s}
+    .kpi-card:hover{transform:translateY(-2px)}
+    .kpi-card.featured{background:var(--dark);border-color:var(--dark)}
+    .kpi-label{font-size:11px;font-weight:500;color:var(--mid);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px}
+    .kpi-card.featured .kpi-label{color:rgba(255,255,255,0.4)}
+    .kpi-value{font-family:var(--serif);font-size:36px;line-height:1;margin-bottom:8px}
+    .kpi-card.featured .kpi-value{color:var(--white)}
+    .kpi-trend{font-size:12px;color:var(--mid)}
+    .kpi-card.featured .kpi-trend{color:rgba(255,255,255,0.5)}
+    .kpi-accent{position:absolute;bottom:0;right:0;width:60px;height:60px;border-radius:50%;background:var(--coral);opacity:0.06;transform:translate(20px,20px)}
+
+    /* CHART */
+    .chart-section{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px}
+    .chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+    .chart-title{font-size:14px;font-weight:600}
+    .chart-legend{display:flex;gap:16px}
+    .legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mid)}
+    .legend-dot{width:8px;height:8px;border-radius:50%}
+    .chart-wrap{position:relative;height:180px}
+    canvas{width:100%!important}
+
+    /* BOTTOM */
+    .bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .panel{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:24px}
+    .panel-title{font-size:14px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+    .panel-subtitle{font-size:12px;font-weight:400;color:var(--mid)}
+
+    /* EVENTS */
+    .event-list{display:flex;flex-direction:column;gap:2px}
+    .event-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+    .event-row:last-child{border:none}
+    .event-info{display:flex;align-items:center;gap:10px}
+    .event-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;background:var(--light)}
+    .event-name{font-size:13px;font-weight:500}
+    .event-time{font-size:11px;color:var(--mid)}
+    .event-badge{font-size:11px;font-weight:500;padding:3px 8px;border-radius:100px}
+    .badge-green{background:#DCFCE7;color:#15803D}
+    .badge-red{background:#FEE2E2;color:#DC2626}
+    .badge-amber{background:#FEF3C7;color:#D97706}
+
+    /* DONUT */
+    .donut-wrap{display:flex;align-items:center;gap:24px}
+    .donut-stats{flex:1;display:flex;flex-direction:column;gap:12px}
+    .donut-stat{display:flex;align-items:center;justify-content:space-between}
+    .donut-stat-label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mid)}
+    .donut-bar-wrap{flex:1;margin:0 12px;height:4px;background:var(--light);border-radius:2px}
+    .donut-bar{height:4px;border-radius:2px;transition:width 0.6s ease}
+    .donut-stat-val{font-size:13px;font-weight:600;min-width:36px;text-align:right}
+
+    /* LOADING */
+    .loading{opacity:0.4;pointer-events:none}
+    .skeleton{display:inline-block;background:linear-gradient(90deg,var(--light) 25%,var(--border) 50%,var(--light) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:4px;color:transparent;min-width:60px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  </style>
+</head>
+<body>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">Navi<span>.</span></div>
+    <div class="sidebar-shop">
+      Boutique active
+      <strong id="shop-name">—</strong>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active"><span class="nav-dot"></span>Vue d'ensemble</div>
+      <div class="nav-item"><span class="nav-dot"></span>Conversations</div>
+      <div class="nav-item"><span class="nav-dot"></span>Commandes</div>
+      <div class="nav-item"><span class="nav-dot"></span>SAV</div>
+      <div class="nav-item"><span class="nav-dot"></span>Paramètres</div>
+    </nav>
+    <div class="sidebar-footer">
+      <strong>Navi Pro</strong>
+      by Myffu Studio
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <h1>Vue d'<em>ensemble</em></h1>
+      <div class="period-toggle">
+        <button class="period-btn active" onclick="setPeriod(7,this)">7 jours</button>
+        <button class="period-btn" onclick="setPeriod(30,this)">30 jours</button>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card featured">
+        <div class="kpi-label">Conversations</div>
+        <div class="kpi-value" id="kpi-conv">—</div>
+        <div class="kpi-trend" id="trend-conv"></div>
+        <div class="kpi-accent"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Taux OTP réussi</div>
+        <div class="kpi-value" id="kpi-otp">—</div>
+        <div class="kpi-trend" id="trend-otp"></div>
+        <div class="kpi-accent"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Commandes trouvées</div>
+        <div class="kpi-value" id="kpi-orders">—</div>
+        <div class="kpi-trend" id="trend-orders"></div>
+        <div class="kpi-accent"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Erreurs 401</div>
+        <div class="kpi-value" id="kpi-errors">—</div>
+        <div class="kpi-trend" id="trend-errors"></div>
+        <div class="kpi-accent"></div>
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <div class="chart-header">
+        <div class="chart-title">Conversations par jour</div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--coral)"></div>Conversations</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--dark)"></div>Commandes</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+
+    <div class="bottom-grid">
+      <div class="panel">
+        <div class="panel-title">Derniers événements <span class="panel-subtitle">temps réel</span></div>
+        <div class="event-list" id="event-list"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Répartition des demandes</div>
+        <div class="donut-wrap">
+          <canvas id="donut" width="120" height="120" style="flex-shrink:0"></canvas>
+          <div class="donut-stats" id="donut-stats"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+const sb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+const SHOP = window.SHOP_DOMAIN;
+
+document.getElementById('shop-name').textContent = SHOP || '—';
+
+let currentPeriod = 7;
+let lineChart, donutChart;
+
+const TYPE_LABELS = {
+  otp_requested:  'Authentification',
+  otp_verified:   'OTP vérifié',
+  orders_fetched: 'Suivi commandes',
+  recommendation: 'Recommandations',
+  sav:            'SAV / retours',
+};
+
+const DONUT_COLORS = ['#E8704A', '#0F0E0C', '#B4B2A9', '#F5C4B3'];
+
+const DAY_NAMES = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+
+function sinceISO(days) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString();
+}
+
+function timeAgo(iso) {
+  const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (diff < 60)   return `Il y a ${diff}s`;
+  if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)}h`;
+  return `Il y a ${Math.floor(diff / 86400)}j`;
+}
+
+function eventMeta(ev) {
+  const iconMap = {
+    otp_requested:  '🔑',
+    otp_verified:   '🔑',
+    orders_fetched: '📦',
+    recommendation: '🛍️',
+    sav:            '💬',
+  };
+  if (ev.error_code === '401') {
+    return { icon: '⚠️', name: 'Session expirée (401)', badge: 'badge-amber', label: 'Expiré' };
+  }
+  const icon = iconMap[ev.event_type] || '●';
+  const name = TYPE_LABELS[ev.event_type] || ev.event_type;
+  const badge = ev.success === true ? 'badge-green' : ev.success === false ? 'badge-red' : 'badge-amber';
+  const label = ev.success === true ? 'Succès' : ev.success === false ? 'Échec' : 'Info';
+  return { icon, name, badge, label };
+}
+
+async function fetchKPIs(since) {
+  const base = () =>
+    sb.from('events').select('*', { count: 'exact', head: true })
+      .eq('shop_domain', SHOP).gte('created_at', since);
+
+  const [
+    { count: conv },
+    { count: otpTotal },
+    { count: otpOk },
+    { count: ordersTotal },
+    { count: ordersOk },
+    { count: err401 },
+  ] = await Promise.all([
+    base().eq('event_type', 'otp_requested'),
+    base().eq('event_type', 'otp_verified'),
+    base().eq('event_type', 'otp_verified').eq('success', true),
+    base().eq('event_type', 'orders_fetched'),
+    base().eq('event_type', 'orders_fetched').eq('success', true),
+    base().eq('error_code', '401'),
+  ]);
+
+  return {
+    conv:       conv       ?? 0,
+    otpRate:    otpTotal   ? Math.round((otpOk    / otpTotal)    * 100) : null,
+    ordersRate: ordersTotal ? Math.round((ordersOk / ordersTotal) * 100) : null,
+    err401:     err401     ?? 0,
+  };
+}
+
+async function fetchChart(since, days) {
+  const { data } = await sb.from('events')
+    .select('created_at, event_type')
+    .eq('shop_domain', SHOP)
+    .gte('created_at', since)
+    .in('event_type', ['otp_requested', 'orders_fetched'])
+    .order('created_at', { ascending: true });
+
+  const labels = [], keys = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    keys.push(key);
+    labels.push(days <= 7 ? DAY_NAMES[d.getDay()] : key.slice(5).replace('-', '/'));
+  }
+
+  const convByDay    = Object.fromEntries(keys.map(k => [k, 0]));
+  const ordersByDay  = Object.fromEntries(keys.map(k => [k, 0]));
+
+  (data || []).forEach(e => {
+    const day = e.created_at.slice(0, 10);
+    if (e.event_type === 'otp_requested'  && day in convByDay)   convByDay[day]++;
+    if (e.event_type === 'orders_fetched' && day in ordersByDay) ordersByDay[day]++;
+  });
+
+  return {
+    labels,
+    conversations: keys.map(k => convByDay[k]),
+    commandes:     keys.map(k => ordersByDay[k]),
+  };
+}
+
+async function fetchEvents(since) {
+  const { data } = await sb.from('events')
+    .select('*')
+    .eq('shop_domain', SHOP)
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(5);
+  return data || [];
+}
+
+async function fetchRepartition(since) {
+  const { data } = await sb.from('events')
+    .select('event_type')
+    .eq('shop_domain', SHOP)
+    .gte('created_at', since);
+
+  if (!data || data.length === 0) return [];
+
+  const counts = {};
+  data.forEach(e => { counts[e.event_type] = (counts[e.event_type] || 0) + 1; });
+
+  const total = data.length;
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  const sumPct = sorted.reduce((acc, [, c]) => acc + Math.round((c / total) * 100), 0);
+
+  return sorted.map(([type, count], i) => ({
+    label: TYPE_LABELS[type] || type,
+    val:   i === 0 ? Math.round((count / total) * 100) + (100 - sumPct) : Math.round((count / total) * 100),
+    color: DONUT_COLORS[i],
+  }));
+}
+
+function renderKPIs(kpis) {
+  document.getElementById('kpi-conv').textContent   = kpis.conv.toLocaleString('fr');
+  document.getElementById('kpi-otp').textContent    = kpis.otpRate    != null ? `${kpis.otpRate}%`    : 'N/A';
+  document.getElementById('kpi-orders').textContent = kpis.ordersRate != null ? `${kpis.ordersRate}%` : 'N/A';
+  document.getElementById('kpi-errors').textContent = kpis.err401.toLocaleString('fr');
+  document.getElementById('trend-conv').textContent   = '';
+  document.getElementById('trend-otp').textContent    = kpis.otpRate    >= 80 ? '↑ bon' : kpis.otpRate != null ? '↓ à surveiller' : '';
+  document.getElementById('trend-orders').textContent = kpis.ordersRate >= 70 ? '↑ bon' : kpis.ordersRate != null ? '↓ à surveiller' : '';
+  document.getElementById('trend-errors').textContent = kpis.err401 === 0 ? '✓ aucune erreur' : `⚠ ${kpis.err401} erreur${kpis.err401 > 1 ? 's' : ''}`;
+}
+
+function renderChart(chartData) {
+  if (lineChart) lineChart.destroy();
+  const ctx = document.getElementById('chart').getContext('2d');
+  lineChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: chartData.labels,
+      datasets: [
+        {
+          label: 'Conversations',
+          data: chartData.conversations,
+          backgroundColor: 'rgba(232,112,74,0.15)',
+          borderColor: '#E8704A',
+          borderWidth: 2,
+          borderRadius: 6,
+          type: 'bar',
+        },
+        {
+          label: 'Commandes',
+          data: chartData.commandes,
+          type: 'line',
+          borderColor: '#0F0E0C',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointBackgroundColor: '#0F0E0C',
+          pointRadius: 3,
+          tension: 0.4,
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { family: 'DM Sans', size: 11 }, color: '#6B6860' } },
+        y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { family: 'DM Sans', size: 11 }, color: '#6B6860' }, border: { display: false } },
+      },
+    },
+  });
+}
+
+function renderDonut(repartition) {
+  if (donutChart) donutChart.destroy();
+  if (!repartition.length) {
+    document.getElementById('donut-stats').innerHTML = '<p style="font-size:13px;color:var(--mid)">Aucune donnée</p>';
+    return;
+  }
+  const ctx = document.getElementById('donut').getContext('2d');
+  donutChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: repartition.map(r => r.label),
+      datasets: [{ data: repartition.map(r => r.val), backgroundColor: repartition.map(r => r.color), borderWidth: 0, hoverOffset: 4 }],
+    },
+    options: {
+      responsive: false, cutout: '72%',
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.raw}%` } } },
+    },
+  });
+
+  document.getElementById('donut-stats').innerHTML = repartition.map(r => `
+    <div class="donut-stat">
+      <div class="donut-stat-label">
+        <div style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0"></div>
+        ${r.label}
+      </div>
+      <div class="donut-bar-wrap"><div class="donut-bar" style="width:${r.val}%;background:${r.color}"></div></div>
+      <div class="donut-stat-val">${r.val}%</div>
+    </div>
+  `).join('');
+}
+
+function renderEvents(events) {
+  const list = document.getElementById('event-list');
+  if (!events.length) {
+    list.innerHTML = '<p style="font-size:13px;color:var(--mid);padding:12px 0">Aucun événement récent</p>';
+    return;
+  }
+  list.innerHTML = events.map(ev => {
+    const { icon, name, badge, label } = eventMeta(ev);
+    return `
+      <div class="event-row">
+        <div class="event-info">
+          <div class="event-icon">${icon}</div>
+          <div>
+            <div class="event-name">${name}</div>
+            <div class="event-time">${timeAgo(ev.created_at)}</div>
+          </div>
+        </div>
+        <span class="event-badge ${badge}">${label}</span>
+      </div>`;
+  }).join('');
+}
+
+async function loadAll() {
+  const since = sinceISO(currentPeriod);
+  const [kpis, chartData, events, repartition] = await Promise.all([
+    fetchKPIs(since),
+    fetchChart(since, currentPeriod),
+    fetchEvents(since),
+    fetchRepartition(since),
+  ]);
+  renderKPIs(kpis);
+  renderChart(chartData);
+  renderEvents(events);
+  renderDonut(repartition);
+}
+
+function setPeriod(days, btn) {
+  currentPeriod = days;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadAll();
+}
+
+loadAll();
+</script>
+
+</body>
+</html>

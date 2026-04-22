@@ -10,6 +10,13 @@ import { z } from "zod";
 import { Resend } from "resend";
 import { randomUUID } from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import cookieParser from "cookie-parser";
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Import tools
 import { getCustomerOrders } from "./tools/getCustomerOrders.js";
@@ -409,7 +416,9 @@ server.tool(
 
 // Initialize Express app
 const app = express();
-app.use(express.json()); // Parse JSON bodies
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
 
 // Global request logging with response tracking
 app.use((req, res, next) => {
@@ -531,6 +540,84 @@ app.post("/api/verify-otp", async (req, res) => {
     res.status(500).json({ token, message: "Verified, but failed to retrieve orders: " + error });
   }
 });
+
+// ─── Dashboard ───────────────────────────────────────────────────────────────
+
+const DASHBOARD_PATH = join(__dirname, '..', 'dashboard', 'index.html');
+
+function loginHtml(error = false): string {
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Navi – Connexion</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'DM Sans',system-ui,sans-serif;background:#F7F5F2;color:#0F0E0C;min-height:100vh;display:flex;align-items:center;justify-content:center}
+    .card{background:#fff;border:1px solid rgba(15,14,12,0.08);border-radius:16px;padding:40px;width:100%;max-width:360px}
+    .logo{font-family:'Instrument Serif',Georgia,serif;font-size:22px;margin-bottom:28px}
+    .logo span{color:#E8704A}
+    h2{font-size:15px;font-weight:600;margin-bottom:6px}
+    p{font-size:13px;color:#6B6860;margin-bottom:24px}
+    label{display:block;font-size:11px;font-weight:500;margin-bottom:6px;color:#6B6860;text-transform:uppercase;letter-spacing:0.06em}
+    input{width:100%;padding:10px 14px;border:1px solid rgba(15,14,12,0.12);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color 0.15s;background:#fff}
+    input:focus{border-color:#E8704A}
+    button{width:100%;margin-top:16px;padding:12px;background:#E8704A;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:opacity 0.15s}
+    button:hover{opacity:0.88}
+    .error{background:#FEE2E2;color:#DC2626;font-size:13px;padding:10px 14px;border-radius:8px;margin-bottom:16px}
+    .footer{margin-top:24px;text-align:center;font-size:11px;color:#B4B2A9}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Navi<span>.</span></div>
+    <h2>Accès dashboard</h2>
+    <p>Espace réservé aux clients Navi Pro.</p>
+    ${error ? '<div class="error">Mot de passe incorrect.</div>' : ''}
+    <form method="POST" action="/dashboard/login">
+      <label>Mot de passe</label>
+      <input type="password" name="password" autofocus required>
+      <button type="submit">Accéder au dashboard</button>
+    </form>
+    <div class="footer">by Myffu Studio</div>
+  </div>
+</body>
+</html>`;
+}
+
+app.get('/dashboard/login', (req, res) => {
+  res.send(loginHtml(req.query.error === '1'));
+});
+
+app.post('/dashboard/login', (req, res) => {
+  if (req.body.password !== process.env.DASHBOARD_PASSWORD) {
+    return void res.redirect('/dashboard/login?error=1');
+  }
+  res.cookie('dashboard_session', 'authenticated', {
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: 'lax',
+  });
+  res.redirect('/dashboard');
+});
+
+app.get('/dashboard', (req, res) => {
+  if ((req as any).cookies.dashboard_session !== 'authenticated') {
+    return void res.redirect('/dashboard/login');
+  }
+  const html = readFileSync(DASHBOARD_PATH, 'utf8');
+  const injected = html.replace('</head>', `<script>
+  window.SUPABASE_URL = '${process.env.SUPABASE_URL}';
+  window.SUPABASE_ANON_KEY = '${process.env.SUPABASE_ANON_KEY}';
+  window.SHOP_DOMAIN = '${process.env.SHOP_DOMAIN}';
+</script>
+</head>`);
+  res.send(injected);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const serverInstance = app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server environment PORT: ${process.env.PORT}`);

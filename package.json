@@ -32,6 +32,8 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.1",
     "@supabase/supabase-js": "^2.103.0",
+    "@types/cookie-parser": "^1.4.10",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^16.0.3",
     "express": "^5.2.1",
     "graphql": "^16.6.0",
