@@ -85,13 +85,15 @@
     .badge-amber{background:#FEF3C7;color:#D97706}
 
     /* DONUT */
-    .donut-wrap{display:flex;align-items:center;gap:24px}
-    .donut-stats{flex:1;display:flex;flex-direction:column;gap:12px}
-    .donut-stat{display:flex;align-items:center;justify-content:space-between}
-    .donut-stat-label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mid)}
-    .donut-bar-wrap{flex:1;margin:0 12px;height:4px;background:var(--light);border-radius:2px}
+    .donut-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+    .donut-canvas-wrap{width:120px;height:120px;flex-shrink:0;position:relative}
+    .donut-canvas-wrap canvas{display:block}
+    .donut-stats{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
+    .donut-stat{display:flex;align-items:center;gap:8px;min-width:0}
+    .donut-stat-label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mid);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .donut-bar-wrap{width:40px;height:4px;background:var(--light);border-radius:2px;flex-shrink:0}
     .donut-bar{height:4px;border-radius:2px;transition:width 0.6s ease}
-    .donut-stat-val{font-size:13px;font-weight:600;min-width:36px;text-align:right}
+    .donut-stat-val{font-size:12px;font-weight:600;min-width:32px;text-align:right;flex-shrink:0}
 
     /* LOADING */
     .loading{opacity:0.4;pointer-events:none}
@@ -178,7 +180,7 @@
       <div class="panel">
         <div class="panel-title">Répartition des demandes</div>
         <div class="donut-wrap">
-          <canvas id="donut" width="120" height="120" style="flex-shrink:0"></canvas>
+          <div class="donut-canvas-wrap"><canvas id="donut"></canvas></div>
           <div class="donut-stats" id="donut-stats"></div>
         </div>
       </div>
@@ -401,7 +403,7 @@ function renderDonut(repartition) {
       datasets: [{ data: repartition.map(r => r.val), backgroundColor: repartition.map(r => r.color), borderWidth: 0, hoverOffset: 4 }],
     },
     options: {
-      responsive: false, cutout: '72%',
+      responsive: true, maintainAspectRatio: false, cutout: '72%',
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.raw}%` } } },
     },
   });
