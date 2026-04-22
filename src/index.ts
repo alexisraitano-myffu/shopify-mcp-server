@@ -419,11 +419,10 @@ server.tool(
   "log-sav-request",
   {
     token: z.string().optional(),
-    email: z.string().email().optional(),
   },
-  async ({ token, email }) => {
-    const sessionEmail = token ? activeSessions.get(token)?.email : undefined;
-    logEvent({ event_type: 'sav_request', email: email || sessionEmail, success: true });
+  async ({ token }) => {
+    const session = token ? activeSessions.get(token) : null;
+    logEvent({ event_type: 'sav_request', email: session?.email || null, success: true });
     return {
       content: [{ type: "text", text: '{"success":true}' }]
     };
