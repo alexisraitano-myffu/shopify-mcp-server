@@ -642,6 +642,11 @@ app.post('/api/log-vente', (req, res) => {
   res.json({ success: true });
 });
 
+app.post('/api/log-sav', (req, res) => {
+  logEvent({ event_type: 'sav_request', success: true });
+  res.json({ success: true });
+});
+
 app.post('/api/quota-reset', async (req, res) => {
   if (!supabase) {
     res.status(503).json({ error: 'Supabase not configured' });
