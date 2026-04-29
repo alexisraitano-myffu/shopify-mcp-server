@@ -556,6 +556,85 @@ app.post("/api/verify-otp", async (req, res) => {
   }
 });
 
+// ─── Quota ───────────────────────────────────────────────────────────────────
+
+app.post('/api/start-conversation', async (req, res) => {
+  if (!supabase) {
+    res.status(503).json({ error: 'Supabase not configured' });
+    return;
+  }
+
+  const shop = process.env.SHOP_DOMAIN;
+  if (!shop) {
+    res.status(500).json({ error: 'SHOP_DOMAIN not configured' });
+    return;
+  }
+
+  const { data: row, error: fetchError } = await supabase
+    .from('quotas')
+    .select('*')
+    .eq('shop_domain', shop)
+    .single();
+
+  if (fetchError && fetchError.code !== 'PGRST116') {
+    console.error('[Quota] fetch error:', fetchError);
+    res.status(500).json({ error: 'quota_fetch_failed' });
+    return;
+  }
+
+  // No row yet — create it with messages_used = 1 (this call counts)
+  if (!row) {
+    await supabase.from('quotas').insert({
+      shop_domain: shop,
+      messages_used: 1,
+      period_start: new Date().toISOString().slice(0, 10),
+    });
+    res.json({ allowed: true });
+    return;
+  }
+
+  let currentUsed = row.messages_used;
+
+  // Auto-renew: reset if period_start is from a previous month
+  if (row.auto_renew) {
+    const periodStart = new Date(row.period_start);
+    const now = new Date();
+    const isOldMonth =
+      periodStart.getFullYear() < now.getFullYear() ||
+      periodStart.getMonth() < now.getMonth();
+
+    if (isOldMonth) {
+      await supabase.from('quota_history').insert({
+        shop_domain: shop,
+        action: 'reset',
+        messages_used_before: currentUsed,
+      });
+      await supabase.from('quotas').update({
+        messages_used: 0,
+        period_start: now.toISOString().slice(0, 10),
+        updated_at: now.toISOString(),
+      }).eq('shop_domain', shop);
+      currentUsed = 0;
+    }
+  }
+
+  if (currentUsed >= row.messages_limit) {
+    res.json({
+      allowed: false,
+      message: 'Service temporairement indisponible',
+      contact_email: process.env.CONTACT_EMAIL || null,
+    });
+    return;
+  }
+
+  await supabase.from('quotas').update({
+    messages_used: currentUsed + 1,
+    updated_at: new Date().toISOString(),
+  }).eq('shop_domain', shop);
+
+  res.json({ allowed: true });
+});
+
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 const DASHBOARD_PATH = join(__dirname, '..', 'dashboard', 'index.html');

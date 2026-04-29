@@ -124,6 +124,17 @@
     .coming-soon-title em{font-style:italic;color:var(--coral)}
     .coming-soon-text{font-size:13px;color:var(--mid);max-width:320px;line-height:1.6}
 
+    /* QUOTA CARD */
+    .quota-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:24px}
+    .quota-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .quota-label{font-size:11px;font-weight:500;color:var(--mid);text-transform:uppercase;letter-spacing:0.06em}
+    .quota-reset{font-size:12px;color:var(--mid)}
+    .quota-numbers{font-family:var(--serif);font-size:28px;line-height:1;margin-bottom:12px}
+    .quota-sep{color:var(--mid)}
+    .quota-bar-bg{height:8px;background:var(--light);border-radius:4px;overflow:hidden;margin-bottom:8px}
+    .quota-bar-fill{height:100%;border-radius:4px;transition:width 0.6s ease,background-color 0.3s}
+    .quota-pct{font-size:12px;color:var(--mid)}
+
     /* LOADING */
     .loading{opacity:0.4;pointer-events:none}
     .skeleton{display:inline-block;background:linear-gradient(90deg,var(--light) 25%,var(--border) 50%,var(--light) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:4px;color:transparent;min-width:60px}
@@ -240,6 +251,20 @@
         <div class="chart-wrap">
           <canvas id="chart"></canvas>
         </div>
+      </div>
+
+      <div class="quota-card" id="quota-card">
+        <div class="quota-header">
+          <div class="quota-label">Quota conversations</div>
+          <div class="quota-reset" id="quota-reset">—</div>
+        </div>
+        <div class="quota-numbers">
+          <span id="quota-used">—</span><span class="quota-sep"> / </span><span id="quota-limit">—</span>
+        </div>
+        <div class="quota-bar-bg">
+          <div class="quota-bar-fill" id="quota-bar"></div>
+        </div>
+        <div class="quota-pct" id="quota-pct"></div>
       </div>
 
       <div class="bottom-grid">
@@ -752,7 +777,31 @@ async function loadSAV() {
   renderSAV(rows);
 }
 
+/* ── QUOTA ── */
+async function loadQuota() {
+  const { data } = await sb.from('quotas').select('*').eq('shop_domain', SHOP).single();
+  if (!data) return;
+
+  const used  = data.messages_used;
+  const limit = data.messages_limit;
+  const pct   = limit > 0 ? Math.round((used / limit) * 100) : 0;
+
+  document.getElementById('quota-used').textContent  = used.toLocaleString('fr');
+  document.getElementById('quota-limit').textContent = limit.toLocaleString('fr');
+  document.getElementById('quota-pct').textContent   = `${pct}% utilisé`;
+
+  const bar = document.getElementById('quota-bar');
+  bar.style.width = `${Math.min(pct, 100)}%`;
+  bar.style.backgroundColor = pct >= 100 ? '#EF4444' : pct >= 80 ? '#F59E0B' : '#22C55E';
+
+  const periodStart = new Date(data.period_start);
+  const nextReset   = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 1);
+  document.getElementById('quota-reset').textContent =
+    'Prochain reset : ' + nextReset.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 loadOverview();
+loadQuota();
 </script>
 
 </body>
