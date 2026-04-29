@@ -589,7 +589,7 @@ app.post('/api/start-conversation', async (req, res) => {
       messages_used: 1,
       period_start: new Date().toISOString().slice(0, 10),
     });
-    res.json({ allowed: true });
+    res.json({ allowed: 'true' });
     return;
   }
 
@@ -620,7 +620,7 @@ app.post('/api/start-conversation', async (req, res) => {
 
   if (currentUsed >= row.messages_limit) {
     res.json({
-      allowed: false,
+      allowed: 'false',
       message: 'Service temporairement indisponible',
       contact_email: process.env.CONTACT_EMAIL || null,
     });
@@ -632,7 +632,7 @@ app.post('/api/start-conversation', async (req, res) => {
     updated_at: new Date().toISOString(),
   }).eq('shop_domain', shop);
 
-  res.json({ allowed: true });
+  res.json({ allowed: 'true' });
 });
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
