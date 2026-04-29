@@ -47,10 +47,23 @@ const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
   : null;
 
+async function getSupabaseWithContext() {
+  if (!supabase) return null;
+  await supabase.rpc('set_config', {
+    setting: 'app.shop_domain',
+    value: process.env.SHOP_DOMAIN ?? '',
+    is_local: true,
+  });
+  return supabase;
+}
+
 function logEvent(payload: Record<string, unknown>) {
   if (!supabase) return;
-  supabase.from('events').insert({ ...payload, shop_domain: process.env.SHOP_DOMAIN }).then(({ error }) => {
-    if (error) console.error('[Supabase] insert error:', JSON.stringify(error));
+  getSupabaseWithContext().then(db => {
+    if (!db) return;
+    db.from('events').insert({ ...payload, shop_domain: process.env.SHOP_DOMAIN }).then(({ error }) => {
+      if (error) console.error('[Supabase] insert error:', JSON.stringify(error));
+    });
   });
 }
 
@@ -559,7 +572,8 @@ app.post("/api/verify-otp", async (req, res) => {
 // ─── Quota ───────────────────────────────────────────────────────────────────
 
 app.post('/api/start-conversation', async (req, res) => {
-  if (!supabase) {
+  const db = await getSupabaseWithContext();
+  if (!db) {
     res.status(503).json({ error: 'Supabase not configured' });
     return;
   }
@@ -570,7 +584,7 @@ app.post('/api/start-conversation', async (req, res) => {
     return;
   }
 
-  const { data: row, error: fetchError } = await supabase
+  const { data: row, error: fetchError } = await db
     .from('quotas')
     .select('*')
     .eq('shop_domain', shop)
@@ -584,7 +598,7 @@ app.post('/api/start-conversation', async (req, res) => {
 
   // No row yet — create it with messages_used = 1 (this call counts)
   if (!row) {
-    await supabase.from('quotas').insert({
+    await db.from('quotas').insert({
       shop_domain: shop,
       messages_used: 1,
       period_start: new Date().toISOString().slice(0, 10),
@@ -605,12 +619,12 @@ app.post('/api/start-conversation', async (req, res) => {
       periodStart.getMonth() < now.getMonth();
 
     if (isOldMonth) {
-      await supabase.from('quota_history').insert({
+      await db.from('quota_history').insert({
         shop_domain: shop,
         action: 'reset',
         messages_used_before: currentUsed,
       });
-      await supabase.from('quotas').update({
+      await db.from('quotas').update({
         messages_used: 0,
         period_start: now.toISOString().slice(0, 10),
         updated_at: now.toISOString(),
@@ -628,7 +642,7 @@ app.post('/api/start-conversation', async (req, res) => {
     return;
   }
 
-  await supabase.from('quotas').update({
+  await db.from('quotas').update({
     messages_used: currentUsed + 1,
     updated_at: new Date().toISOString(),
   }).eq('shop_domain', shop);
@@ -648,7 +662,8 @@ app.post('/api/log-sav', (req, res) => {
 });
 
 app.post('/api/quota-reset', async (req, res) => {
-  if (!supabase) {
+  const db = await getSupabaseWithContext();
+  if (!db) {
     res.status(503).json({ error: 'Supabase not configured' });
     return;
   }
@@ -659,7 +674,7 @@ app.post('/api/quota-reset', async (req, res) => {
     return;
   }
 
-  const { data: row, error: fetchError } = await supabase
+  const { data: row, error: fetchError } = await db
     .from('quotas')
     .select('*')
     .eq('shop_domain', shop)
@@ -691,12 +706,12 @@ app.post('/api/quota-reset', async (req, res) => {
     return;
   }
 
-  await supabase.from('quota_history').insert({
+  await db.from('quota_history').insert({
     shop_domain: shop,
     action: 'reset',
     messages_used_before: row.messages_used,
   });
-  await supabase.from('quotas').update({
+  await db.from('quotas').update({
     messages_used: 0,
     period_start: now.toISOString().slice(0, 10),
     updated_at: now.toISOString(),
