@@ -635,6 +635,64 @@ app.post('/api/start-conversation', async (req, res) => {
   res.json({ allowed: 'true' });
 });
 
+app.post('/api/quota-reset', async (req, res) => {
+  if (!supabase) {
+    res.status(503).json({ error: 'Supabase not configured' });
+    return;
+  }
+
+  const shop = process.env.SHOP_DOMAIN;
+  if (!shop) {
+    res.status(500).json({ error: 'SHOP_DOMAIN not configured' });
+    return;
+  }
+
+  const { data: row, error: fetchError } = await supabase
+    .from('quotas')
+    .select('*')
+    .eq('shop_domain', shop)
+    .single();
+
+  if (fetchError && fetchError.code !== 'PGRST116') {
+    res.status(500).json({ error: 'quota_fetch_failed' });
+    return;
+  }
+
+  if (!row) {
+    res.json({ reset: false, reason: 'no_quota_row' });
+    return;
+  }
+
+  if (!row.auto_renew) {
+    res.json({ reset: false, reason: 'auto_renew_disabled' });
+    return;
+  }
+
+  const periodStart = new Date(row.period_start);
+  const now = new Date();
+  const isOldMonth =
+    periodStart.getFullYear() < now.getFullYear() ||
+    periodStart.getMonth() < now.getMonth();
+
+  if (!isOldMonth) {
+    res.json({ reset: false, reason: 'same_month' });
+    return;
+  }
+
+  await supabase.from('quota_history').insert({
+    shop_domain: shop,
+    action: 'reset',
+    messages_used_before: row.messages_used,
+  });
+  await supabase.from('quotas').update({
+    messages_used: 0,
+    period_start: now.toISOString().slice(0, 10),
+    updated_at: now.toISOString(),
+  }).eq('shop_domain', shop);
+
+  res.json({ reset: true, messages_used_before: row.messages_used });
+});
+
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 const DASHBOARD_PATH = join(__dirname, '..', 'dashboard', 'index.html');

@@ -48,6 +48,10 @@
     .period-toggle{display:flex;background:var(--white);border:1px solid var(--border);border-radius:100px;padding:3px;gap:2px}
     .period-btn{padding:6px 16px;border-radius:100px;border:none;font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;background:none;color:var(--mid);transition:all 0.15s}
     .period-btn.active{background:var(--dark);color:var(--white)}
+    .refresh-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;background:var(--white);border:1px solid var(--border);border-radius:100px;font-family:var(--sans);font-size:12px;font-weight:500;color:var(--mid);cursor:pointer;transition:all 0.15s}
+    .refresh-btn:hover{border-color:var(--dark);color:var(--dark)}
+    .refresh-btn.spinning svg{animation:spin 0.8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
 
     /* KPI */
     .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
@@ -205,9 +209,15 @@
   <main class="main">
     <div class="header">
       <h1 id="page-title">Vue d'<em>ensemble</em></h1>
-      <div class="period-toggle">
-        <button class="period-btn active" onclick="setPeriod(7,this)">7 jours</button>
-        <button class="period-btn" onclick="setPeriod(30,this)">30 jours</button>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="refresh-btn" id="refresh-btn" onclick="refreshAll()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+          Rafraîchir
+        </button>
+        <div class="period-toggle">
+          <button class="period-btn active" onclick="setPeriod(7,this)">7 jours</button>
+          <button class="period-btn" onclick="setPeriod(30,this)">30 jours</button>
+        </div>
       </div>
     </div>
 
@@ -775,6 +785,24 @@ async function loadSAV() {
     '<tr><td colspan="3" class="table-empty">Chargement…</td></tr>';
   const rows = await fetchSAV(sinceISO(currentPeriod));
   renderSAV(rows);
+}
+
+/* ── REFRESH ── */
+async function refreshAll() {
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('spinning');
+  btn.disabled = true;
+
+  await fetch('/api/quota-reset', { method: 'POST' });
+
+  if (currentView === 'overview')           await Promise.all([loadOverview(), loadQuota()]);
+  else if (currentView === 'conversations') await Promise.all([loadConversations(), loadQuota()]);
+  else if (currentView === 'commandes')     await Promise.all([loadCommandes(), loadQuota()]);
+  else if (currentView === 'sav')           await Promise.all([loadSAV(), loadQuota()]);
+  else                                      await loadQuota();
+
+  btn.classList.remove('spinning');
+  btn.disabled = false;
 }
 
 /* ── QUOTA ── */
