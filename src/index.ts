@@ -589,6 +589,7 @@ app.post('/api/start-conversation', async (req, res) => {
       messages_used: 1,
       period_start: new Date().toISOString().slice(0, 10),
     });
+    logEvent({ event_type: 'conversation_started' });
     res.json({ allowed: 'true' });
     return;
   }
@@ -632,7 +633,13 @@ app.post('/api/start-conversation', async (req, res) => {
     updated_at: new Date().toISOString(),
   }).eq('shop_domain', shop);
 
+  logEvent({ event_type: 'conversation_started' });
   res.json({ allowed: 'true' });
+});
+
+app.post('/api/log-vente', (req, res) => {
+  logEvent({ event_type: 'vente_request', success: true });
+  res.json({ success: true });
 });
 
 app.post('/api/quota-reset', async (req, res) => {
