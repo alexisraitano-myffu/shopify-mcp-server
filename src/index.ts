@@ -42,28 +42,20 @@ const MYSHOPIFY_DOMAIN = argv.domain || process.env.MYSHOPIFY_DOMAIN;
 const PORT = Number(process.env.PORT) || 8080;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
-// Supabase client (optional — disabled if env vars are missing)
+// Supabase anon client — used only for dashboard (browser-side, injected via window.*)
 const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
   : null;
 
-async function getSupabaseWithContext() {
-  if (!supabase) return null;
-  await supabase.rpc('set_config', {
-    setting: 'app.shop_domain',
-    value: process.env.SHOP_DOMAIN ?? '',
-    is_local: true,
-  });
-  return supabase;
-}
+// Supabase admin client — service role key, bypasses RLS, used for all server-side operations
+const supabaseAdmin = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  : null;
 
 function logEvent(payload: Record<string, unknown>) {
-  if (!supabase) return;
-  getSupabaseWithContext().then(db => {
-    if (!db) return;
-    db.from('events').insert({ ...payload, shop_domain: process.env.SHOP_DOMAIN }).then(({ error }) => {
-      if (error) console.error('[Supabase] insert error:', JSON.stringify(error));
-    });
+  if (!supabaseAdmin) return;
+  supabaseAdmin.from('events').insert({ ...payload, shop_domain: process.env.SHOP_DOMAIN }).then(({ error }) => {
+    if (error) console.error('[Supabase] insert error:', JSON.stringify(error));
   });
 }
 
@@ -572,7 +564,7 @@ app.post("/api/verify-otp", async (req, res) => {
 // ─── Quota ───────────────────────────────────────────────────────────────────
 
 app.post('/api/start-conversation', async (req, res) => {
-  const db = await getSupabaseWithContext();
+  const db = supabaseAdmin;
   if (!db) {
     res.status(503).json({ error: 'Supabase not configured' });
     return;
@@ -662,7 +654,7 @@ app.post('/api/log-sav', (req, res) => {
 });
 
 app.post('/api/quota-reset', async (req, res) => {
-  const db = await getSupabaseWithContext();
+  const db = supabaseAdmin;
   if (!db) {
     res.status(503).json({ error: 'Supabase not configured' });
     return;
