@@ -788,6 +788,9 @@ app.get('/dashboard', (req, res) => {
   res.send(injected);
 });
 
+// Serve dashboard static assets (favicon, images) — index: false prevents bypassing auth
+app.use('/dashboard', express.static(join(__dirname, '..', 'dashboard'), { index: false }));
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 const serverInstance = app.listen(PORT, "0.0.0.0", () => {
