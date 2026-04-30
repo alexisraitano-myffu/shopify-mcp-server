@@ -41,6 +41,8 @@ const SHOPIFY_ACCESS_TOKEN =
 const MYSHOPIFY_DOMAIN = argv.domain || process.env.MYSHOPIFY_DOMAIN;
 const PORT = Number(process.env.PORT) || 8080;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const DEMO_EMAIL     = process.env.DEMO_EMAIL;
+const DEMO_OTP       = process.env.DEMO_OTP;
 
 // Supabase anon client — used only for dashboard (browser-side, injected via window.*)
 const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
@@ -495,6 +497,14 @@ app.post("/api/request-otp", async (req, res) => {
     return;
   }
 
+  // Demo mode — fixed OTP, no email sent
+  if (DEMO_EMAIL && DEMO_OTP && email === DEMO_EMAIL) {
+    otpStorage.set(email, { code: DEMO_OTP, expires: Date.now() + 5 * 60 * 1000 });
+    logEvent({ event_type: 'otp_requested', email });
+    res.json({ success: true });
+    return;
+  }
+
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   otpStorage.set(email, { code, expires: Date.now() + 5 * 60 * 1000 }); // 5 minutes
 
@@ -523,14 +533,15 @@ app.post("/api/verify-otp", async (req, res) => {
     return;
   }
 
+  // Demo mode — accept fixed OTP regardless of storage state
+  const isDemoVerification = DEMO_EMAIL && DEMO_OTP && email === DEMO_EMAIL && code === DEMO_OTP;
   const stored = otpStorage.get(email);
-  if (!stored || stored.code !== code || Date.now() > stored.expires) {
+  if (!isDemoVerification && (!stored || stored.code !== code || Date.now() > stored.expires)) {
     logEvent({ event_type: 'otp_failed', email, success: false });
     res.status(401).json({ error: "Invalid or expired OTP" });
     return;
   }
-
-  otpStorage.delete(email);
+  if (!isDemoVerification) otpStorage.delete(email);
   const token = randomUUID();
 
   try {
